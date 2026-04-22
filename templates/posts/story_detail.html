@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+
+{% block title %}Story by {{ story.author.username }} - Hello World{% endblock %}
+
+{% block content %}
+<div class="container-fluid h-100">
+    <div class="row h-100">
+        <!-- Story Viewer -->
+        <div class="col-md-8 d-flex align-items-center justify-content-center">
+            <div class="story-viewer-container">
+                <!-- Story Header -->
+                <div class="story-header">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ story.author.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                 alt="{{ story.author.username }}" 
+                                 class="story-author-avatar">
+                            <div class="ms-3">
+                                <h6 class="mb-0 text-white">
+                                    <a href="{% url 'accounts:profile' story.author.username %}" 
+                                       class="text-decoration-none text-white">
+                                        {{ story.author.username }}
+                                    </a>
+                                    {% if story.author.real_name %}
+                                        <small class="text-muted">({{ story.author.real_name }})</small>
+                                    {% endif %}
+                                </h6>
+                                <small class="text-muted">{{ story.time_remaining }} left</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center">
+                            <span class="text-white me-3">
+                                <i class="bi bi-eye me-1"></i>{{ story.views_count }}
+                            </span>
+                            <a href="{% url 'posts:feed' %}" class="text-white text-decoration-none">
+                                <i class="bi bi-x-lg"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="story-progress mt-2">
+                        <div class="progress" style="height: 3px;">
+                            <div class="progress-bar bg-danger" 
+                                 role="progressbar" 
+                                 style="width: 100%; transition: width 60s linear;"
+                                 id="story-progress">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Story Content -->
+                <div class="story-content">
+                    <img src="{{ story.image.url }}" 
+                         alt="Story by {{ story.author.username }}" 
+                         class="story-image"
+                         id="story-image">
+                    
+                    <!-- Text Overlay -->
+                    <div id="story-text-overlay" class="story-text-overlay">
+                        <!-- Text will be dynamically added here -->
+                    </div>
+                    
+                    {% if story.caption %}
+                    <div class="story-caption">
+                        <p class="text-white mb-0">{{ story.caption }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Story Actions -->
+                <div class="story-actions">
+                    <div class="d-flex justify-content-around">
+                        <button class="btn btn-link text-white p-2">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                        <button class="btn btn-link text-white p-2">
+                            <i class="bi bi-chat"></i>
+                        </button>
+                        <button class="btn btn-link text-white p-2">
+                            <i class="bi bi-paper-plane"></i>
+                        </button>
+                        <button class="btn btn-link text-white p-2">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Story Navigation -->
+        {% if other_stories %}
+        <div class="col-md-4 d-flex align-items-center justify-content-center">
+            <div class="story-navigation">
+                <h6 class="text-white mb-3">More Stories</h6>
+                <div class="story-list">
+                    {% for other_story in other_stories %}
+                    <a href="{% url 'posts:story_detail' other_story.id %}" 
+                       class="story-item text-decoration-none">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{{ other_story.author.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                 alt="{{ other_story.author.username }}" 
+                                 class="story-nav-avatar">
+                            <div class="ms-3">
+                                <p class="text-white mb-0 small">{{ other_story.author.username }}</p>
+                                <small class="text-muted">{{ other_story.time_remaining }} left</small>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+body {
+    background: #000;
+    margin: 0;
+    padding: 0;
+}
+
+.story-viewer-container {
+    width: 100%;
+    max-width: 400px;
+    height: 90vh;
+    max-height: 700px;
+    background: var(--background-card);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-color);
+}
+
+.story-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 15px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    z-index: 10;
+}
+
+.story-author-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--electric-pink);
+}
+
+.story-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.story-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.story-caption {
+    position: absolute;
+    bottom: 60px;
+    left: 15px;
+    right: 15px;
+    background: rgba(0,0,0,0.7);
+    padding: 10px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.story-actions {
+    position: absolute;
+    bottom: 15px;
+    left: 0;
+    right: 0;
+    padding: 0 15px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    z-index: 10;
+}
+
+.story-navigation {
+    width: 100%;
+    max-width: 300px;
+}
+
+.story-nav-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.story-item {
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.story-item:hover {
+    opacity: 1;
+}
+
+.btn-link {
+    text-decoration: none;
+    transition: transform 0.2s ease;
+}
+
+.btn-link:hover {
+    transform: scale(1.2);
+    color: var(--electric-pink) !important;
+}
+
+.progress-bar {
+    background: var(--electric-pink) !important;
+}
+
+@media (max-width: 768px) {
+    .story-viewer-container {
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .story-navigation {
+        display: none;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Render text overlay and apply filters
+    renderStoryContent();
+    
+    // Auto-advance story after 60 seconds
+    const progressBar = document.getElementById('story-progress');
+    
+    if (progressBar) {
+        // Animate progress bar
+        setTimeout(() => {
+            progressBar.style.width = '0%';
+        }, 100);
+        
+        // Redirect to feed after 60 seconds
+        setTimeout(() => {
+            window.location.href = '{% url "posts:feed" %}';
+        }, 60000);
+    }
+    
+    // Handle keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = '{% url "posts:feed" %}';
+        }
+    });
+    
+    // Handle swipe gestures for mobile
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    const storyContainer = document.querySelector('.story-viewer-container');
+    
+    storyContainer.addEventListener('touchstart', function(e) {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+    
+    storyContainer.addEventListener('touchend', function(e) {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+    
+    function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchStartX - touchEndX;
+        
+        if (Math.abs(diff) > swipeThreshold) {
+            if (diff > 0) {
+                // Swipe left - next story
+                console.log('Next story');
+            } else {
+                // Swipe right - previous story
+                console.log('Previous story');
+            }
+        }
+    }
+});
+
+function renderStoryContent() {
+    const storyImage = document.getElementById('story-image');
+    const textOverlay = document.getElementById('story-text-overlay');
+    const captionData = '{{ story.caption|escapejs }}';
+    
+    if (!captionData || captionData === 'None') {
+        return;
+    }
+    
+    try {
+        const storyData = JSON.parse(captionData);
+        
+        // Apply filter to image
+        if (storyData.filter && storyData.filter !== 'none') {
+            storyImage.classList.add('filter-' + storyData.filter);
+        }
+        
+        // Apply zoom and rotation
+        if (storyData.zoom || storyData.rotation) {
+            const zoom = storyData.zoom || 1;
+            const rotation = storyData.rotation || 0;
+            storyImage.style.transform = `scale(${zoom}) rotate(${rotation}deg)`;
+        }
+        
+        // Render text overlay
+        if (storyData.text && storyData.text.trim()) {
+            const textElement = document.createElement('div');
+            textElement.className = 'story-overlay-text';
+            textElement.textContent = storyData.text;
+            
+            // Apply text styling
+            const style = storyData.style || {};
+            textElement.style.position = 'absolute';
+            textElement.style.left = (storyData.position?.x || '50') + 'px';
+            textElement.style.top = (storyData.position?.y || '50') + '%';
+            textElement.style.transform = `translateY(-50%)`;
+            textElement.style.color = style.color || '#ffffff';
+            textElement.style.fontSize = style.fontSize || '24px';
+            textElement.style.fontFamily = style.fontFamily || 'Arial';
+            textElement.style.fontWeight = style.fontWeight || 'normal';
+            textElement.style.fontStyle = style.fontStyle || 'normal';
+            textElement.style.textDecoration = style.textDecoration || 'none';
+            textElement.style.textAlign = 'center';
+            textElement.style.padding = '10px';
+            textElement.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+            textElement.style.pointerEvents = 'none';
+            
+            textOverlay.appendChild(textElement);
+        }
+        
+    } catch (error) {
+        console.error('Error parsing story data:', error);
+        
+        // Fallback: treat caption as plain text
+        if (captionData && captionData.trim()) {
+            const textElement = document.createElement('div');
+            textElement.className = 'story-caption';
+            textElement.innerHTML = `<p class="text-white mb-0">${captionData}</p>`;
+            textOverlay.appendChild(textElement);
+        }
+    }
+}
+</script>
+{% endblock %}

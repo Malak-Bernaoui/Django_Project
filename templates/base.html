@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hello World{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --electric-pink: #FF1493;
+            --electric-pink-dark: #C71585;
+            --electric-pink-light: #FF69B4;
+            --black: #000000;
+            --dark-gray: #1A1A1A;
+            --medium-gray: #2D2D2D;
+            --light-gray: #404040;
+            --lighter-gray: #555555;
+            --white: #FFFFFF;
+            --background-dark: #121212;
+            --background-card: #1E1E1E;
+            --background-sidebar: #1A1A1A;
+            --border-color: #333333;
+            --border-light: #404040;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B3B3B3;
+            --text-muted: #808080;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-dark);
+            color: var(--text-primary);
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+            background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark), var(--electric-pink-light));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+        }
+
+        .post-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background: var(--background-card);
+        }
+
+        .post-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .post-image {
+            width: 100%;
+            max-height: 600px;
+            object-fit: cover;
+        }
+
+        .post-actions {
+            padding: 12px 16px;
+        }
+
+        .post-actions i {
+            font-size: 1.5rem;
+            margin-right: 12px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .post-actions i:hover {
+            color: var(--electric-pink);
+        }
+
+        .liked {
+            color: var(--electric-pink) !important;
+        }
+
+        .post-caption {
+            padding: 0 16px 12px;
+        }
+
+        .post-comments {
+            padding: 0 16px 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .comment {
+            margin-bottom: 8px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .profile-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .profile-avatar-large {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100vh;
+            background: var(--background-sidebar);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .sidebar-nav .btn {
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sidebar-nav .btn:hover {
+            background: var(--medium-gray);
+            color: var(--text-primary);
+        }
+
+        .sidebar-nav .btn i {
+            font-size: 1.2rem;
+        }
+
+        .right-sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 100vh;
+            background: var(--background-sidebar);
+            border-left: 1px solid var(--border-color);
+            padding: 20px;
+            z-index: 999;
+            overflow-y: auto;
+        }
+
+        .suggestions-card {
+            background: var(--background-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .suggestions-header {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .suggestion-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .suggestion-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .suggestion-user {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .suggestion-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+
+        .suggestion-info {
+            flex: 1;
+        }
+
+        .suggestion-username {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: block;
+        }
+
+        .suggestion-username:hover {
+            color: var(--electric-pink);
+        }
+
+        .suggestion-bio {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 2px;
+        }
+
+        .follow-btn {
+            background: transparent;
+            border: none;
+            color: var(--electric-pink);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .follow-btn:hover {
+            background: rgba(255, 20, 147, 0.1);
+        }
+
+        .follow-btn.following {
+            color: var(--text-muted);
+            background: rgba(128, 128, 128, 0.1);
+        }
+
+        .follow-btn.following:hover {
+            color: var(--electric-pink);
+            background: rgba(255, 20, 147, 0.1);
+        }
+
+        .popular-accounts-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .popular-accounts-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .see-all-link {
+            font-size: 0.85rem;
+            color: var(--electric-pink);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .see-all-link:hover {
+            text-decoration: underline;
+        }
+
+        .verified-badge {
+            color: var(--electric-pink);
+            font-size: 0.8rem;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            margin-right: 300px;
+            padding: 20px;
+            margin-top: 0;
+        }
+
+        .feed-container {
+            max-width: 614px;
+            margin: 0 auto;
+        }
+
+        .story-circle {
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+            padding: 3px;
+            cursor: pointer;
+        }
+
+        .story-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid white;
+            object-fit: cover;
+        }
+
+        .btn-primary-instagram {
+            background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+            border: none;
+            color: white;
+            padding: 8px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn-primary-instagram:hover {
+            background: linear-gradient(45deg, var(--electric-pink-dark), var(--electric-pink));
+            color: white;
+        }
+
+        .form-control:focus {
+            border-color: var(--electric-pink);
+            box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
+        }
+
+        .messages-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .message-link {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+
+        .message-link:hover {
+            background: var(--medium-gray);
+            color: var(--text-primary);
+        }
+
+        .message-link i {
+            font-size: 1.2rem;
+            margin-right: 12px;
+            color: var(--electric-pink);
+        }
+
+        .message-link span {
+            flex-grow: 1;
+            font-size: 0.9rem;
+        }
+
+        .message-badge {
+            background: var(--electric-pink);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+        }
+
+        @media (max-width: 1200px) {
+            .right-sidebar {
+                display: none;
+            }
+            
+            .main-content {
+                margin-right: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-nav {
+                display: none;
+            }
+            
+            .right-sidebar {
+                display: none;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                margin-right: 0;
+                padding: 10px;
+            }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            max-width: 300px;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Left Sidebar Navigation -->
+    <div class="sidebar-nav">
+        <!-- App Brand -->
+        <div class="mb-4">
+            <h2 class="navbar-brand m-0 p-0" style="font-size: 1.8rem;">
+                Hello World
+            </h2>
+        </div>
+        
+        {% if user.is_authenticated %}
+        <div class="d-flex flex-column">
+            <a href="{% url 'posts:feed' %}" class="btn btn-outline-dark mb-2 text-start">
+                <i class="bi bi-house-door me-2"></i> Home
+            </a>
+            <a href="{% url 'posts:search' %}" class="btn btn-outline-dark mb-2 text-start">
+                <i class="bi bi-search me-2"></i> Search
+            </a>
+            <a href="{% url 'posts:explore' %}" class="btn btn-outline-dark mb-2 text-start">
+                <i class="bi bi-compass me-2"></i> Explore
+            </a>
+            <a href="{% url 'posts:create_story' %}" class="btn btn-outline-dark mb-2 text-start">
+                <i class="bi bi-camera-reels me-2"></i> Create Story
+            </a>
+            <a href="{% url 'posts:create_post' %}" class="btn btn-outline-dark mb-2 text-start">
+                <i class="bi bi-plus-square me-2"></i> Create Post
+            </a>
+            <a href="{% url 'accounts:profile' user.username %}" class="btn btn-outline-dark mb-2 text-start">
+                <i class="bi bi-person me-2"></i> Profile
+            </a>
+            <a href="{% url 'posts:notifications' %}" class="btn btn-outline-dark mb-2 text-start position-relative">
+                <i class="bi bi-bell me-2"></i> Notifications
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notification-badge" style="display: none;">
+                    0
+                </span>
+            </a>
+            <a href="{% url 'messaging:inbox' %}" class="btn btn-outline-dark mb-2 text-start position-relative">
+                <i class="bi bi-chat-dots me-2"></i> Messages
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="sidebar-message-badge" style="display: none;">
+                    0
+                </span>
+            </a>
+            <hr>
+            <form method="post" action="{% url 'accounts:logout' %}" onsubmit="handleLogout(event)">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger text-start w-100">
+                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <div class="d-flex flex-column">
+            <a href="{% url 'accounts:login' %}" class="btn btn-primary-instagram mb-2 text-start">
+                <i class="bi bi-box-arrow-in-right me-2"></i> Login
+            </a>
+            <a href="{% url 'accounts:register' %}" class="btn btn-outline-primary mb-2 text-start">
+                <i class="bi bi-person-plus me-2"></i> Register
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="notification">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Right Sidebar - Popular Accounts -->
+    {% if user.is_authenticated %}
+    <div class="right-sidebar">
+        <div class="suggestions-card">
+            <div class="suggestions-header">Suggestions For You</div>
+            <div id="suggestions-list">
+                <!-- Suggestions will be loaded here -->
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages Section -->
+        <div class="suggestions-card">
+            <div class="suggestions-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Messages</span>
+                    <a href="{% url 'messaging:inbox' %}" class="see-all-link">See All</a>
+                </div>
+            </div>
+            <div class="messages-nav">
+                <a href="{% url 'messaging:inbox' %}" class="message-link">
+                    <i class="bi bi-chat-dots"></i>
+                    <span>Inbox</span>
+                    <span class="message-badge" id="inbox-badge" style="display: none;">0</span>
+                </a>
+                <a href="{% url 'messaging:message_requests' %}" class="message-link">
+                    <i class="bi bi-person-plus"></i>
+                    <span>Requests</span>
+                    <span class="message-badge" id="requests-badge" style="display: none;">0</span>
+                </a>
+            </div>
+        </div>
+        
+        <div class="suggestions-card">
+            <div class="popular-accounts-header">
+                <div class="popular-accounts-title">Popular Accounts</div>
+                <a href="#" class="see-all-link">See All</a>
+            </div>
+            <div id="popular-list">
+                <!-- Popular accounts will be loaded here -->
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Notification Badge Update -->
+    {% if user.is_authenticated %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to update notification badge
+        function updateNotificationBadge() {
+            fetch('/posts/api/notifications/unread-count/', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.getElementById('notification-badge');
+                if (data.count > 0) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching notification count:', error);
+            });
+        }
+
+        // Initial update
+        updateNotificationBadge();
+
+        // Update every 30 seconds
+        setInterval(updateNotificationBadge, 30000);
+
+        // Load popular accounts and suggestions
+        loadPopularAccounts();
+        loadSuggestions();
+    });
+
+    function loadPopularAccounts() {
+        fetch('/posts/api/popular-accounts/', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const popularList = document.getElementById('popular-list');
+            if (data.users && data.users.length > 0) {
+                let html = '';
+                data.users.forEach(user => {
+                    html += `
+                        <div class="suggestion-item">
+                            <div class="suggestion-user">
+                                <img src="${user.profile_picture || '/static/images/default-avatar.png'}" 
+                                     alt="${user.username}" class="suggestion-avatar">
+                                <div class="suggestion-info">
+                                    <a href="/accounts/profile/${user.username}/" class="suggestion-username">
+                                        ${user.username}
+                                    </a>
+                                    <div class="suggestion-bio">${user.bio || 'No bio available'}</div>
+                                </div>
+                            </div>
+                            <button class="follow-btn" onclick="followUser('${user.username}')">
+                                Follow
+                            </button>
+                        </div>
+                    `;
+                });
+                popularList.innerHTML = html;
+            } else {
+                popularList.innerHTML = '<div class="text-center py-3"><p class="text-muted small">No popular accounts found</p></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading popular accounts:', error);
+            document.getElementById('popular-list').innerHTML = '<div class="text-center py-3"><p class="text-muted small">Error loading suggestions</p></div>';
+        });
+    }
+
+    function loadSuggestions() {
+        fetch('/posts/api/suggested-accounts/', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const suggestionsList = document.getElementById('suggestions-list');
+            if (data.users && data.users.length > 0) {
+                let html = '';
+                data.users.forEach(user => {
+                    html += `
+                        <div class="suggestion-item">
+                            <div class="suggestion-user">
+                                <img src="${user.profile_picture || '/static/images/default-avatar.png'}" 
+                                     alt="${user.username}" class="suggestion-avatar">
+                                <div class="suggestion-info">
+                                    <a href="/accounts/profile/${user.username}/" class="suggestion-username">
+                                        ${user.username}
+                                    </a>
+                                    <div class="suggestion-bio">${user.bio || 'Suggested for you'}</div>
+                                </div>
+                            </div>
+                            <button class="follow-btn" onclick="followUser('${user.username}')">
+                                Follow
+                            </button>
+                        </div>
+                    `;
+                });
+                suggestionsList.innerHTML = html;
+            } else {
+                suggestionsList.innerHTML = '<div class="text-center py-3"><p class="text-muted small">No suggestions available</p></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading suggestions:', error);
+            document.getElementById('suggestions-list').innerHTML = '<div class="text-center py-3"><p class="text-muted small">Error loading suggestions</p></div>';
+        });
+    }
+
+    function followUser(username) {
+        fetch(`/accounts/follow/${username}/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload suggestions to update the list
+                loadSuggestions();
+                loadPopularAccounts();
+            }
+        })
+        .catch(error => {
+            console.error('Error following user:', error);
+        });
+    }
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    </script>
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+<script>
+// Fake popular accounts data (musicians/artists)
+const popularAccounts = [
+    {
+        username: 'taylorswift',
+        name: 'Taylor Swift',
+        bio: 'Musician & Songwriter',
+        avatar: 'https://picsum.photos/seed/taylor/100/100.jpg',
+        followers: '182M',
+        verified: true
+    },
+    {
+        username: 'drake',
+        name: 'Drake',
+        bio: 'Artist | OVO',
+        avatar: 'https://picsum.photos/seed/drake/100/100.jpg',
+        followers: '139M',
+        verified: true
+    },
+    {
+        username: 'billieeilish',
+        name: 'Billie Eilish',
+        bio: 'musician',
+        avatar: 'https://picsum.photos/seed/billie/100/100.jpg',
+        followers: '110M',
+        verified: true
+    },
+    {
+        username: 'theweeknd',
+        name: 'The Weeknd',
+        bio: 'Music',
+        avatar: 'https://picsum.photos/seed/weeknd/100/100.jpg',
+        followers: '98M',
+        verified: true
+    },
+    {
+        username: 'arianagrande',
+        name: 'Ariana Grande',
+        bio: 'singer',
+        avatar: 'https://picsum.photos/seed/ariana/100/100.jpg',
+        followers: '376M',
+        verified: true
+    }
+];
+
+// Load popular accounts
+function loadPopularAccounts() {
+    const popularList = document.getElementById('popular-list');
+    if (!popularList) return;
+    
+    let html = '';
+    popularAccounts.forEach(account => {
+        html += `
+            <div class="suggestion-item">
+                <div class="suggestion-user">
+                    <img src="${account.avatar}" alt="${account.username}" class="suggestion-avatar">
+                    <div class="suggestion-info">
+                        <a href="#" class="suggestion-username">
+                            ${account.username}
+                            ${account.verified ? '<i class="bi bi-patch-check-fill text-primary ms-1" style="font-size: 0.8rem;"></i>' : ''}
+                        </a>
+                        <div class="suggestion-bio">${account.bio}</div>
+                    </div>
+                </div>
+                <button class="follow-btn" onclick="toggleFollow(this, '${account.username}')">Follow</button>
+            </div>
+        `;
+    });
+    
+    popularList.innerHTML = html;
+}
+
+// Toggle follow functionality for popular accounts
+function toggleFollow(button, username) {
+    if (button.textContent === 'Follow') {
+        button.textContent = 'Following';
+        button.classList.add('following');
+    } else {
+        button.textContent = 'Follow';
+        button.classList.remove('following');
+    }
+}
+
+// Load popular accounts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadPopularAccounts();
+});
+
+function handleLogout(event) {
+    event.preventDefault();
+    
+    // Break out of any iframe/frame before submitting
+    const form = event.target;
+    const logoutUrl = form.action;
+    
+    if (window.top !== window.self) {
+        // Create a temporary form in top window and submit
+        const tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = logoutUrl;
+        
+        // Add CSRF token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        tempForm.appendChild(csrfInput);
+        
+        window.top.document.body.appendChild(tempForm);
+        tempForm.submit();
+    } else {
+        // Submit form normally if not in iframe
+        form.submit();
+    }
+}
+
+// Update message notification badges
+function updateMessageBadges() {
+    // Fetch message counts
+    fetch('/messaging/search-users/', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // This is a workaround - we'll use the search endpoint to check if user is authenticated
+        if (data.users !== undefined) {
+            // User is authenticated, fetch message counts
+            fetchMessageCounts();
+        }
+    })
+    .catch(error => {
+        console.log('User not authenticated or error checking messages');
+    });
+}
+
+function fetchMessageCounts() {
+    // Fetch unread messages count
+    fetch('/messaging/search-users/?q=check_messages', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .catch(error => {
+        // For now, we'll simulate message counts
+        // In a real implementation, you'd create endpoints to get actual counts
+        simulateMessageCounts();
+    });
+}
+
+function simulateMessageCounts() {
+    // Simulate message counts for demonstration
+    const inboxBadge = document.getElementById('inbox-badge');
+    const requestsBadge = document.getElementById('requests-badge');
+    const sidebarBadge = document.getElementById('sidebar-message-badge');
+    
+    // Simulate some unread messages
+    const unreadCount = Math.floor(Math.random() * 5);
+    const requestCount = Math.floor(Math.random() * 3);
+    const totalCount = unreadCount + requestCount;
+    
+    if (inboxBadge && unreadCount > 0) {
+        inboxBadge.textContent = unreadCount;
+        inboxBadge.style.display = 'flex';
+    }
+    
+    if (requestsBadge && requestCount > 0) {
+        requestsBadge.textContent = requestCount;
+        requestsBadge.style.display = 'flex';
+    }
+    
+    if (sidebarBadge && totalCount > 0) {
+        sidebarBadge.textContent = totalCount;
+        sidebarBadge.style.display = 'block';
+    }
+}
+
+// Initialize message badges on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.querySelector('.messages-nav')) {
+        updateMessageBadges();
+        
+        // Update badges every 30 seconds
+        setInterval(updateMessageBadges, 30000);
+    }
+});
+
+</script>
+</body>
+</html>

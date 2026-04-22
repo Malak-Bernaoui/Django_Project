@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Follow Requests - Hello World{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="h4 mb-0">
+                        <i class="bi bi-person-check me-2"></i>
+                        Follow Requests
+                    </h3>
+                    <a href="{% url 'accounts:profile' user.username %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Profile
+                    </a>
+                </div>
+                
+                {% if follow_requests %}
+                    <div class="list-group">
+                        {% for request in follow_requests %}
+                            <div class="list-group-item d-flex align-items-center justify-content-between" 
+                                 style="background: var(--background-card); border-color: var(--border-color);">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ request.from_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                         alt="{{ request.from_user.username }}" 
+                                         class="profile-avatar me-3">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            <a href="{% url 'accounts:profile' request.from_user.username %}" 
+                                               class="text-decoration-none text-primary">
+                                                {{ request.from_user.username }}
+                                            </a>
+                                            {% if request.from_user.real_name %}
+                                                <small class="text-muted">({{ request.from_user.real_name }})</small>
+                                            {% endif %}
+                                        </h6>
+                                        {% if request.from_user.bio %}
+                                            <p class="mb-0 text-muted small">{{ request.from_user.bio|truncatechars:100 }}</p>
+                                        {% endif %}
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>
+                                            {{ request.created_at|timesince }} ago
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary-instagram btn-sm accept-request" 
+                                            data-request-id="{{ request.id }}">
+                                        <i class="bi bi-check-lg me-1"></i>Accept
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm reject-request" 
+                                            data-request-id="{{ request.id }}">
+                                        <i class="bi bi-x-lg me-1"></i>Reject
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-person-check display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">No Follow Requests</h5>
+                        <p class="text-muted">You don't have any pending follow requests.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.list-group-item {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background: var(--medium-gray);
+}
+
+.btn-outline-secondary {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--medium-gray);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+.profile-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--electric-pink);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle accept request
+    document.querySelectorAll('.accept-request').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.dataset.requestId;
+            const listItem = this.closest('.list-group-item');
+            
+            // Show loading state
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Processing...';
+            this.disabled = true;
+            
+            fetch(`/accounts/follow-requests/${requestId}/accept/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the item with animation
+                    listItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                    listItem.style.opacity = '0';
+                    listItem.style.transform = 'translateX(20px)';
+                    
+                    setTimeout(() => {
+                        listItem.remove();
+                        
+                        // Check if no more requests
+                        const remainingItems = document.querySelectorAll('.list-group-item');
+                        if (remainingItems.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                }
+            })
+            .catch(error => {
+                console.error('Error accepting request:', error);
+                this.innerHTML = '<i class="bi bi-check-lg me-1"></i>Accept';
+                this.disabled = false;
+            });
+        });
+    });
+    
+    // Handle reject request
+    document.querySelectorAll('.reject-request').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.dataset.requestId;
+            const listItem = this.closest('.list-group-item');
+            
+            // Show loading state
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Processing...';
+            this.disabled = true;
+            
+            fetch(`/accounts/follow-requests/${requestId}/reject/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the item with animation
+                    listItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                    listItem.style.opacity = '0';
+                    listItem.style.transform = 'translateX(20px)';
+                    
+                    setTimeout(() => {
+                        listItem.remove();
+                        
+                        // Check if no more requests
+                        const remainingItems = document.querySelectorAll('.list-group-item');
+                        if (remainingItems.length === 0) {
+                            location.reload();
+                        }
+                    }, 300);
+                }
+            })
+            .catch(error => {
+                console.error('Error rejecting request:', error);
+                this.innerHTML = '<i class="bi bi-x-lg me-1"></i>Reject';
+                this.disabled = false;
+            });
+        });
+    });
+});
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

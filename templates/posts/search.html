@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% load post_extras %}
+
+{% block title %}Search - Instagram Clone{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <!-- Search Bar -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" action="{% url 'posts:search' %}" class="d-flex" id="search-form">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" 
+                               id="search-input"
+                               placeholder="Search for profiles..." 
+                               value="{{ query }}"
+                               autocomplete="off">
+                        <button class="btn btn-primary-instagram" type="submit">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="search-loading" class="card border-0 shadow-sm mb-4" style="display: none;">
+            <div class="card-body text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        {% if query %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Search Results for "{{ query }}"</h5>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Users Section -->
+        {% if users %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3">Profiles</h6>
+                    <div class="user-list">
+                        {% for user in users %}
+                            <div class="user-item">
+                                <div class="d-flex align-items-center p-3 border-bottom">
+                                    <img src="{{ user.profile_picture.url|default:'/static/images/default-avatar.png' }}" alt="{{ user.username }}" class="profile-avatar me-3">
+                                    <div class="flex-grow-1">
+                                        <a href="{% url 'accounts:profile' user.username %}" class="text-decoration-none text-dark">
+                                            <strong>{{ user.username }}</strong>
+                                            {% if user.is_private %}
+                                                <i class="bi bi-lock-fill text-muted ms-1" style="font-size: 0.8rem;" title="Private Account"></i>
+                                            {% endif %}
+                                            {% if user.bio %}
+                                                <div class="text-muted small">{{ user.bio|truncatechars:50 }}</div>
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-sm btn-primary-instagram">Follow</button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- No Results or Fake Users -->
+        {% if not users and query %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-search display-4 text-muted mb-3"></i>
+                    <h5>No profiles found</h5>
+                    <p class="text-muted">Try searching for different usernames or names</p>
+                </div>
+            </div>
+        {% elif not users and not query %}
+            <!-- Fake Users for Demonstration -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Suggested Profiles</h5>
+                    <div class="user-list">
+                        {% for i in "123456789" %}
+                            <div class="user-item">
+                                <div class="d-flex align-items-center p-3 border-bottom">
+                                    <img src="https://picsum.photos/seed/user{{ i }}/100/100.jpg" 
+                                         alt="User {{ i }}" class="rounded-circle me-3" 
+                                         style="width: 60px; height: 60px; object-fit: cover;">
+                                    <div class="flex-grow-1">
+                                        <a href="#" class="text-decoration-none text-dark fw-bold">
+                                            user_{{ i }}
+                                        </a>
+                                        <div class="text-muted small">Demo User {{ i }}</div>
+                                        <div class="text-muted small">{{ i|add:100 }} followers</div>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-sm btn-primary-instagram">Follow</button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.card-img-top {
+    border-radius: 8px 8px 0 0;
+}
+
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.user-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.user-item:last-child .border-bottom {
+    border-bottom: none !important;
+}
+
+.user-item:hover {
+    background: var(--background-light);
+    transition: background 0.2s ease;
+}
+
+.user-item .profile-avatar {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.user-item .btn-primary-instagram {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    const searchForm = document.getElementById('search-form');
+    const loadingIndicator = document.getElementById('search-loading');
+    let searchTimeout;
+
+    // Fake user data for live search
+    const fakeUsers = [
+        { username: 'alice_wonder', bio: 'Adventure seeker & travel blogger', followers: 1234, private: false },
+        { username: 'bob_builder', bio: 'Construction & DIY projects', followers: 892, private: false },
+        { username: 'charlie_artist', bio: 'Digital artist & designer', followers: 3456, private: true },
+        { username: 'diana_foodie', bio: 'Food lover & recipe creator', followers: 5678, private: false },
+        { username: 'evan_tech', bio: 'Tech enthusiast & coder', followers: 2345, private: false },
+        { username: 'fiona_fitness', bio: 'Fitness coach & nutritionist', followers: 4567, private: true },
+        { username: 'george_music', bio: 'Music producer & DJ', followers: 6789, private: false },
+        { username: 'helen_writer', bio: 'Author & book reviewer', followers: 1567, private: false },
+        { username: 'ian_photographer', bio: 'Nature & wildlife photographer', followers: 7890, private: false },
+        { username: 'julia_travel', bio: 'World traveler & blogger', followers: 9012, private: false },
+        { username: 'kevin_gamer', bio: 'Professional gamer & streamer', followers: 11234, private: false },
+        { username: 'laura_fashion', bio: 'Fashion designer & stylist', followers: 13456, private: true },
+        { username: 'mike_sports', bio: 'Sports analyst & commentator', followers: 5678, private: false },
+        { username: 'nina_cook', bio: 'Chef & culinary instructor', followers: 3456, private: false },
+        { username: 'oliver_science', bio: 'Science communicator & researcher', followers: 7890, private: false }
+    ];
+
+    // Show fake users while typing
+    function showFakeUsers(query) {
+        const filteredUsers = fakeUsers.filter(user => 
+            user.username.toLowerCase().includes(query.toLowerCase()) ||
+            user.bio.toLowerCase().includes(query.toLowerCase())
+        );
+
+        const usersContainer = document.querySelector('.user-list');
+        const usersCard = usersContainer.closest('.card');
+        
+        if (usersCard) {
+            usersCard.style.display = 'block';
+        }
+
+        let usersHTML = '';
+        filteredUsers.slice(0, 5).forEach((user, index) => {
+            usersHTML += `
+                <div class="user-item">
+                    <div class="d-flex align-items-center p-3 border-bottom">
+                        <img src="https://picsum.photos/seed/fake${user.username}/100/100.jpg" 
+                             alt="${user.username}" class="profile-avatar me-3">
+                        <div class="flex-grow-1">
+                            <a href="#" class="text-decoration-none text-dark fw-bold">
+                                ${user.username}
+                                ${user.private ? '<i class="bi bi-lock-fill text-muted ms-1" style="font-size: 0.8rem;" title="Private Account"></i>' : ''}
+                            </a>
+                            <div class="text-muted small">${user.bio}</div>
+                            <div class="text-muted small">${user.followers.toLocaleString()} followers</div>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-primary-instagram">Follow</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        usersContainer.innerHTML = usersHTML;
+        loadingIndicator.style.display = 'none';
+    }
+
+    // Real-time search with debouncing
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        
+        const query = e.target.value.trim();
+        
+        if (query.length > 0) {
+            // Show fake users immediately while typing
+            showFakeUsers(query);
+            
+            searchTimeout = setTimeout(function() {
+                // Show loading indicator
+                loadingIndicator.style.display = 'block';
+                
+                // Perform AJAX search for real results
+                fetch(`/search/?q=${encodeURIComponent(query)}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Update search results with real data
+                    updateSearchResults(data);
+                    
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    loadingIndicator.style.display = 'none';
+                });
+            }, 300); // Debounce search requests
+        } else {
+            // Clear results and hide users section when input is empty
+            const usersContainer = document.querySelector('.user-list');
+            const usersCard = usersContainer ? usersContainer.closest('.card') : null;
+            if (usersCard) {
+                usersCard.style.display = 'none';
+            }
+            loadingIndicator.style.display = 'none';
+        }
+    });
+
+    function updateSearchResults(data) {
+        const usersSection = document.querySelector('.card:has(.card-body h6:contains("Profiles"))');
+        
+        // Update users section
+        if (data.users && data.users.length > 0) {
+            let usersHtml = '<div class="row">';
+            data.users.forEach(user => {
+                usersHtml += `
+                    <div class="col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <img src="${user.profile_picture}" alt="${user.username}" class="profile-avatar me-3">
+                            <div class="flex-grow-1">
+                                <a href="/accounts/profile/${user.username}/" class="text-decoration-none text-dark">
+                                    <strong>${user.username}</strong>
+                                    ${user.bio ? `<div class="text-muted small">${user.bio.substring(0, 50)}</div>` : ''}
+                                </a>
+                            </div>
+                        </div>
+                `;
+            });
+            usersHtml += '</div>';
+            
+            if (usersSection) {
+                usersSection.innerHTML = usersHtml;
+            }
+        } else {
+            if (usersSection) {
+                usersSection.innerHTML = '<div class="text-center py-3"><p class="text-muted">No profiles found</p></div>';
+            }
+        }
+    }
+
+    // Add date formatting helper
+    Date.prototype.toLocaleDateString = function() {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${months[this.getMonth()]} ${this.getDate()}, ${this.getFullYear()}`;
+    };
+</script>
+{% endblock %}

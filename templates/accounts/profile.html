@@ -1,0 +1,505 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ profile_user.username }} - Hello World{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <!-- Profile Header Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <!-- Profile Picture -->
+                    <div class="col-md-3 text-center">
+                        <div class="position-relative d-inline-block">
+                            <img src="{{ profile_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                 alt="{{ profile_user.username }}" 
+                                 class="profile-avatar-large mb-3">
+                            {% if profile_user.is_private %}
+                                <div class="position-absolute top-0 end-0">
+                                    <span class="badge bg-dark rounded-circle p-2">
+                                        <i class="bi bi-lock"></i>
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Profile Actions -->
+                        <div class="d-flex flex-column gap-2">
+                            {% if profile_user != user %}
+                                {% if is_following %}
+                                    <a href="{% url 'accounts:unfollow' profile_user.username %}" 
+                                       class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-person-dash me-1"></i>Unfollow
+                                    </a>
+                                {% elif has_pending_request %}
+                                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                                        <i class="bi bi-clock me-1"></i>Request Sent
+                                    </button>
+                                {% else %}
+                                    <a href="{% url 'accounts:follow' profile_user.username %}" 
+                                       class="btn btn-primary-instagram btn-sm" id="follow-btn">
+                                        <i class="bi bi-person-plus me-1"></i>Follow
+                                    </a>
+                                {% endif %}
+                                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#messageModal" id="message-btn">
+                                    <i class="bi bi-envelope me-1"></i>Message
+                                </button>
+                            {% else %}
+                                <a href="{% url 'accounts:edit_profile' profile_user.username %}" 
+                                   class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-gear me-1"></i>Edit Profile
+                                </a>
+                                {% if pending_requests_count > 0 %}
+                                    <a href="{% url 'accounts:follow_requests' %}" 
+                                       class="btn btn-primary-instagram btn-sm position-relative">
+                                        <i class="bi bi-person-check me-1"></i>Follow Requests
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                            {{ pending_requests_count }}
+                                        </span>
+                                    </a>
+                                {% endif %}
+                                <button class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-share me-1"></i>Share Profile
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Profile Info -->
+                    <div class="col-md-9">
+                        <!-- Username and Verified Badge -->
+                        <div class="d-flex align-items-center mb-3">
+                            <h2 class="h3 mb-0 me-3">{{ profile_user.username }}</h2>
+                            {% if profile_user.is_private %}
+                                <span class="badge bg-dark me-2">
+                                    <i class="bi bi-lock me-1"></i>Private
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success me-2">
+                                    <i class="bi bi-globe me-1"></i>Public
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Stats -->
+                        <div class="d-flex mb-3">
+                            <div class="me-4">
+                                <strong>{{ profile_user.posts.count }}</strong>
+                                <span class="text-muted">posts</span>
+                            </div>
+                            <div class="me-4">
+                                <strong>{{ profile_user.followers_count }}</strong>
+                                <a href="{% url 'accounts:followers' profile_user.username %}" 
+                                   class="text-decoration-none text-secondary">
+                                    followers
+                                </a>
+                            </div>
+                            <div>
+                                <strong>{{ profile_user.following_count }}</strong>
+                                <a href="{% url 'accounts:following' profile_user.username %}" 
+                                   class="text-decoration-none text-secondary">
+                                    following
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Real Name and Bio -->
+                        <div class="mb-3">
+                            {% if profile_user.real_name %}
+                                <h5 class="h6 mb-1">{{ profile_user.real_name }}</h5>
+                            {% endif %}
+                            {% if profile_user.bio %}
+                                <p class="mb-0 text-secondary">{{ profile_user.bio }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Website Link -->
+                        {% if profile_user.website %}
+                        <div class="mb-3">
+                            <a href="{{ profile_user.website }}" target="_blank" 
+                               class="text-decoration-none">
+                                <i class="bi bi-link-45deg me-1"></i>
+                                <span class="text-primary">{{ profile_user.website }}</span>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Privacy Notice -->
+                        {% if profile_user.is_private and profile_user != user %}
+                        <div class="alert alert-info py-2 mb-0">
+                            <small class="mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                This is a private account. Follow to see their posts and stories.
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User's Posts -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h4 class="h5 mb-4">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>
+                    {% if profile_user == user %}Your{% else %}{{ profile_user.username }}'s{% endif %} Posts
+                </h4>
+                
+                {% if profile_user.is_private and profile_user != user and not is_following %}
+                    <!-- Private Account Message -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-lock display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">This Account is Private</h5>
+                        <p class="text-muted">Follow this account to see their posts and stories.</p>
+                    </div>
+                {% else %}
+                    <!-- Posts Grid -->
+                    <div class="row g-3">
+                        {% for post in profile_user.posts.all %}
+                            <div class="col-md-4 col-lg-3">
+                                <div class="position-relative">
+                                    <a href="{% url 'posts:post_detail' post.id %}" class="text-decoration-none">
+                                        <img src="{{ post.image.url }}" 
+                                             alt="Post by {{ post.author.username }}" 
+                                             class="img-fluid rounded"
+                                             style="width: 100%; height: 250px; object-fit: cover;">
+                                        
+                                        <!-- Post Overlay -->
+                                        <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center post-overlay"
+                                             style="background: rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s;">
+                                            <div class="text-white text-center">
+                                                <div class="d-flex justify-content-center align-items-center mb-2">
+                                                    <i class="bi bi-heart me-2"></i>
+                                                    <span>{{ post.likes_count }}</span>
+                                                </div>
+                                                <div class="d-flex justify-content-center align-items-center">
+                                                    <i class="bi bi-chat me-2"></i>
+                                                    <span>{{ post.comments_count }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <!-- Fake Posts for Demonstration -->
+                            {% for i in "123456789" %}
+                                <div class="col-md-4 col-lg-3">
+                                    <div class="position-relative">
+                                        <a href="#" class="text-decoration-none">
+                                            <img src="https://picsum.photos/seed/profile{{ profile_user.username }}{{ i }}/300/300.jpg" 
+                                                 alt="Demo post {{ i }}" 
+                                                 class="img-fluid rounded"
+                                                 style="width: 100%; height: 250px; object-fit: cover;">
+                                            
+                                            <!-- Post Overlay -->
+                                            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center post-overlay"
+                                                 style="background: rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s;">
+                                                <div class="text-white text-center">
+                                                    <div class="d-flex justify-content-center align-items-center mb-2">
+                                                        <i class="bi bi-heart me-2"></i>
+                                                        <span>{{ i|add:15 }}</span>
+                                                    </div>
+                                                    <div class="d-flex justify-content-center align-items-center">
+                                                        <i class="bi bi-chat me-2"></i>
+                                                        <span>{{ i|add:3 }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+}
+
+.profile-avatar-large {
+    border: 4px solid var(--electric-pink);
+    box-shadow: 0 0 20px rgba(255, 20, 147, 0.3);
+}
+
+.post-overlay {
+    transition: opacity 0.3s ease;
+}
+
+.post-overlay:hover {
+    opacity: 1 !important;
+}
+
+.btn-outline-secondary {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--medium-gray);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+.alert-info {
+    background-color: rgba(255, 20, 147, 0.1);
+    border-color: var(--electric-pink);
+    color: var(--text-primary);
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+a {
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--electric-pink) !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to post images
+    const postImages = document.querySelectorAll('.img-fluid');
+    postImages.forEach(img => {
+        img.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.02)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        img.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+    
+    // Share profile functionality
+    const shareBtn = document.querySelector('button:has(.bi-share)');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', function() {
+            const profileUrl = window.location.href;
+            if (navigator.share) {
+                navigator.share({
+                    title: '{{ profile_user.username }} on Hello World',
+                    url: profileUrl
+                });
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(profileUrl).then(() => {
+                    alert('Profile link copied to clipboard!');
+                });
+            }
+        });
+    }
+    
+    // Handle follow button for AJAX requests
+    const followBtn = document.getElementById('follow-btn');
+    if (followBtn) {
+        followBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const username = '{{ profile_user.username }}';
+            const originalText = this.innerHTML;
+            
+            // Show loading state
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading...';
+            this.disabled = true;
+            
+            fetch(`/accounts/follow/${username}/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.is_private && !data.followed) {
+                        // Private account - request sent
+                        this.innerHTML = '<i class="bi bi-clock me-1"></i>Request Sent';
+                        this.className = 'btn btn-outline-secondary btn-sm';
+                        this.disabled = true;
+                    } else if (data.followed) {
+                        // Public account - followed successfully
+                        this.innerHTML = '<i class="bi bi-person-dash me-1"></i>Unfollow';
+                        this.href = `/accounts/unfollow/${username}/`;
+                        this.className = 'btn btn-outline-secondary btn-sm';
+                        this.disabled = false;
+                    }
+                    
+                    // Show success message
+                    showNotification(data.message, 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error following user:', error);
+                this.innerHTML = originalText;
+                this.disabled = false;
+                showNotification('Error following user', 'error');
+            });
+        });
+    }
+});
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<!-- Message Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Message {{ profile_user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="message-content" class="form-label">Message:</label>
+                    <textarea class="form-control" id="message-content" rows="4" placeholder="Type your message..."></textarea>
+                </div>
+                <div class="text-muted small">
+                    {% if user.is_authenticated and user != profile_user %}
+                        {% if user in profile_user.followers.all and profile_user in user.followers.all %}
+                            <i class="bi bi-check-circle text-success me-1"></i>You can message this user directly
+                        {% else %}
+                            <i class="bi bi-info-circle me-1"></i>This will send a message request
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-instagram" id="send-message-btn">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const messageBtn = document.getElementById('message-btn');
+    const sendBtn = document.getElementById('send-message-btn');
+    const messageContent = document.getElementById('message-content');
+    const messageModal = document.getElementById('messageModal');
+    
+    // Handle send message
+    sendBtn.addEventListener('click', function() {
+        const content = messageContent.value.trim();
+        if (!content) {
+            alert('Please enter a message');
+            return;
+        }
+        
+        // Disable button and show loading
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Sending...';
+        
+        // Check if users can message directly
+        fetch(`/messaging/start/{{ profile_user.username }}/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.can_message) {
+                    // Can message directly - create conversation
+                    window.location.href = `/messaging/conversation/${data.conversation_id}/`;
+                } else {
+                    // Need to send message request
+                    fetch(`/messaging/send-request/{{ profile_user.username }}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: `content=${encodeURIComponent(content)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Message request sent! They will need to accept it before you can chat.', 'success');
+                            bootstrap.Modal.getInstance(messageModal).hide();
+                            messageContent.value = '';
+                        } else {
+                            showNotification(data.error || 'Error sending message request', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Error sending message request', 'danger');
+                    })
+                    .finally(() => {
+                        sendBtn.disabled = false;
+                        sendBtn.innerHTML = 'Send';
+                    });
+                }
+            } else {
+                showNotification(data.error || 'Error starting conversation', 'danger');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error starting conversation', 'danger');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = 'Send';
+        });
+    });
+    
+    // Reset modal when hidden
+    messageModal.addEventListener('hidden.bs.modal', function() {
+        messageContent.value = '';
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = 'Send';
+    });
+});
+</script>
+{% endblock %}

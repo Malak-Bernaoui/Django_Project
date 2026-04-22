@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ conversation.get_other_participant.user.username }} - Messages{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Sidebar -->
+        <div class="col-md-3 col-lg-2 sidebar">
+            <div class="d-flex flex-column p-3">
+                <h5 class="text-white mb-4">Messages</h5>
+                
+                <!-- Navigation -->
+                <nav class="nav flex-column">
+                    <a href="{% url 'messaging:inbox' %}" class="nav-link text-white">
+                        <i class="bi bi-chat-dots me-2"></i>Inbox
+                    </a>
+                    <a href="{% url 'messaging:message_requests' %}" class="nav-link text-white">
+                        <i class="bi bi-person-plus me-2"></i>Message Requests
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="col-md-9 col-lg-10 main-content">
+            <!-- Chat Header -->
+            <div class="chat-header p-3 border-bottom">
+                <div class="d-flex align-items-center">
+                    <a href="{% url 'messaging:inbox' %}" class="btn btn-link text-dark me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    {% with other_user=conversation.get_other_participant.user %}
+                        <img src="{{ other_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                             alt="{{ other_user.username }}" class="rounded-circle me-3" 
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0">{{ other_user.username }}</h6>
+                            <small class="text-muted">Active now</small>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-dark" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'accounts:profile' other_user.username %}">View Profile</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="deleteConversation()">Delete Conversation</a></li>
+                            </ul>
+                        </div>
+                    {% endwith %}
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div class="messages-container p-4" id="messages-container" style="height: calc(100vh - 200px); overflow-y: auto;">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="message-item mb-3 {% if message.sender == user %}sent-message{% else %}received-message{% endif %}">
+                            <div class="d-flex {% if message.sender == user %}justify-content-end{% else %}justify-content-start{% endif %}">
+                                {% if message.sender != user %}
+                                    <img src="{{ message.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                         alt="{{ message.sender.username }}" class="rounded-circle me-2" 
+                                         style="width: 30px; height: 30px; object-fit: cover;">
+                                {% endif %}
+                                <div class="message-bubble p-3 {% if message.sender == user %}bg-primary text-white{% else %}bg-light{% endif %}" 
+                                     style="max-width: 70%; border-radius: 18px;">
+                                    <p class="mb-1">{{ message.content }}</p>
+                                    <small class="{% if message.sender == user %}text-white-50{% else %}text-muted{% endif %}">
+                                        {{ message.created_at|date:"H:i" }}
+                                        {% if message.sender == user and message.is_read %}
+                                            <i class="bi bi-check2-all ms-1"></i>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% if message.sender == user %}
+                                    <img src="{{ message.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                         alt="{{ message.sender.username }}" class="rounded-circle ms-2" 
+                                         style="width: 30px; height: 30px; object-fit: cover;">
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-chat-dots display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">No messages yet</h5>
+                        <p class="text-muted">Start the conversation!</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Message Input -->
+            <div class="message-input p-3 border-top">
+                <form id="message-form" class="d-flex align-items-center">
+                    <div class="flex-grow-1 me-2">
+                        <input type="text" id="message-input" class="form-control" placeholder="Type a message..." autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary-instagram">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.sidebar {
+    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
+    min-height: 100vh;
+}
+
+.chat-header {
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.messages-container {
+    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+    scroll-behavior: smooth;
+}
+
+.message-bubble {
+    word-wrap: break-word;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.sent-message .message-bubble {
+    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.received-message .message-bubble {
+    background: white;
+    color: black;
+    border: 1px solid #e9ecef;
+    border-bottom-left-radius: 4px;
+}
+
+.message-input {
+    background: white;
+    border-top: 1px solid var(--border-color);
+}
+
+#message-input {
+    border-radius: 25px;
+    border: 1px solid var(--border-color);
+    padding: 12px 20px;
+}
+
+#message-input:focus {
+    border-color: var(--electric-pink);
+    box-shadow: 0 0 0 0.2rem rgba(255, 0, 150, 0.25);
+}
+
+.btn-primary-instagram {
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
+    border: none;
+}
+
+.btn-primary-instagram:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+/* Message animations */
+.message-item {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.sent-message {
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Typing indicator */
+.typing-indicator {
+    display: none;
+    align-items: center;
+    padding: 10px;
+}
+
+.typing-indicator .dots {
+    display: flex;
+    gap: 4px;
+}
+
+.typing-indicator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6c757d;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-10px);
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const messagesContainer = document.getElementById('messages-container');
+    
+    // Scroll to bottom on load
+    scrollToBottom();
+    
+    // Handle message submission
+    messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const content = messageInput.value.trim();
+        if (!content) return;
+        
+        // Add message to chat immediately (optimistic UI)
+        addMessageToChat({
+            content: content,
+            created_at: new Date().toISOString(),
+            sender: '{{ user.username }}'
+        }, true);
+        
+        messageInput.value = '';
+        
+        // Send message via AJAX
+        fetch(`/messaging/send/{{ conversation.id }}/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `content=${encodeURIComponent(content)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Message already added optimistically
+                scrollToBottom();
+            } else {
+                // Remove the optimistic message if it failed
+                removeLastMessage();
+                alert(data.error || 'Error sending message');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            removeLastMessage();
+            alert('Error sending message');
+        });
+    });
+    
+    function addMessageToChat(messageData, isSent = false) {
+        const messageHtml = `
+            <div class="message-item mb-3 ${isSent ? 'sent-message' : 'received-message'}">
+                <div class="d-flex ${isSent ? 'justify-content-end' : 'justify-content-start'}">
+                    ${!isSent ? `
+                        <img src="${messageData.sender_profile_picture || '/static/images/default-avatar.png'}" 
+                             alt="${messageData.sender}" class="rounded-circle me-2" 
+                             style="width: 30px; height: 30px; object-fit: cover;">
+                    ` : ''}
+                    <div class="message-bubble p-3 ${isSent ? 'bg-primary text-white' : 'bg-light'}" style="max-width: 70%; border-radius: 18px;">
+                        <p class="mb-1">${messageData.content}</p>
+                        <small class="${isSent ? 'text-white-50' : 'text-muted'}">
+                            ${new Date(messageData.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            ${isSent ? '<i class="bi bi-check ms-1"></i>' : ''}
+                        </small>
+                    </div>
+                    ${isSent ? `
+                        <img src="{{ user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                             alt="{{ user.username }}" class="rounded-circle ms-2" 
+                             style="width: 30px; height: 30px; object-fit: cover;">
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+    }
+    
+    function removeLastMessage() {
+        const lastMessage = messagesContainer.lastElementChild;
+        if (lastMessage && lastMessage.classList.contains('sent-message')) {
+            lastMessage.remove();
+        }
+    }
+    
+    function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Auto-refresh messages every 30 seconds
+    setInterval(function() {
+        // Only refresh if user is not actively typing
+        if (document.activeElement !== messageInput) {
+            checkForNewMessages();
+        }
+    }, 30000);
+    
+    function checkForNewMessages() {
+        fetch(`/messaging/conversation/{{ conversation.id }}/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.messages && data.messages.length > messagesContainer.children.length) {
+                // Add new messages
+                const currentMessageCount = messagesContainer.children.length;
+                for (let i = currentMessageCount; i < data.messages.length; i++) {
+                    const message = data.messages[i];
+                    if (message.sender !== '{{ user.username }}') {
+                        addMessageToChat(message, false);
+                    }
+                }
+                scrollToBottom();
+            }
+        })
+        .catch(error => console.log('Error checking for new messages:', error));
+    }
+    
+    // Show typing indicator when user is typing
+    let typingTimeout;
+    messageInput.addEventListener('input', function() {
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            // Stop showing typing indicator after 3 seconds of inactivity
+        }, 3000);
+    });
+});
+
+function deleteConversation() {
+    if (confirm('Are you sure you want to delete this conversation?')) {
+        // Implement conversation deletion
+        alert('Conversation deleted (not implemented yet)');
+    }
+}
+</script>
+{% endblock %}

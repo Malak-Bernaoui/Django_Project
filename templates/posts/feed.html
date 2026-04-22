@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% load post_extras %}
+
+{% block title %}Feed - Instagram Clone{% endblock %}
+
+{% block content %}
+<div class="feed-container">
+    <!-- Stories Section -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex overflow-auto">
+                <!-- Add Story Button -->
+                <div class="text-center me-3">
+                    <a href="{% url 'posts:create_story' %}" class="text-decoration-none">
+                        <div class="story-circle">
+                            <div class="d-flex align-items-center justify-content-center h-100">
+                                <i class="bi bi-plus-lg text-white"></i>
+                            </div>
+                        </div>
+                        <small class="d-block mt-1 text-secondary">Your Story</small>
+                    </a>
+                </div>
+                
+                <!-- Stories from followed users -->
+                {% for story_data in stories_by_author %}
+                    <div class="text-center me-3">
+                        <a href="{% url 'posts:story_detail' story_data.latest_story.id %}" 
+                           class="text-decoration-none position-relative">
+                            <div class="story-circle">
+                                <img src="{{ story_data.author.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                     alt="{{ story_data.author.username }}" 
+                                     class="story-avatar">
+                                {% if story_data.stories|length > 1 %}
+                                    <span class="position-absolute top-0 end-0 badge rounded-pill bg-danger" 
+                                          style="font-size: 0.6rem;">
+                                        {{ story_data.stories|length }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <small class="d-block mt-1 text-secondary">{{ story_data.author.username|truncatechars:10 }}</small>
+                        </a>
+                    </div>
+                {% empty %}
+                    <!-- Show followed users without stories -->
+                    {% for followed_user in user.following.all|slice:":5" %}
+                        <div class="text-center me-3">
+                            <div class="story-circle story-empty">
+                                <img src="{{ followed_user.following.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                     alt="{{ followed_user.following.username }}" 
+                                     class="story-avatar">
+                            </div>
+                            <small class="d-block mt-1 text-secondary">{{ followed_user.following.username|truncatechars:10 }}</small>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Posts Feed -->
+    {% for post in posts %}
+        <div class="post-card" data-post-id="{{ post.id }}">
+            <!-- Post Header -->
+            <div class="post-header">
+                <div class="d-flex align-items-center">
+                    <img src="{{ post.author.profile_picture.url }}" alt="{{ post.author.username }}" class="profile-avatar me-3">
+                    <div class="flex-grow-1">
+                        <a href="{% url 'accounts:profile' post.author.username %}" class="text-decoration-none text-dark fw-bold">
+                            {{ post.author.username }}
+                        </a>
+                        <div class="text-muted small">{{ post.created_at|date:"F d, Y" }}</div>
+                    </div>
+                    {% if post.author == user %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'posts:delete_post' post.id %}">Delete Post</a></li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Post Image -->
+            <div class="post-image-container">
+                <img src="{{ post.image.url }}" alt="Post by {{ post.author.username }}" class="post-image">
+            </div>
+
+            <!-- Post Actions -->
+            <div class="post-actions">
+                <div class="d-flex align-items-center">
+                    <i class="bi {% if post|is_liked_by:user %}bi-heart-fill liked{% else %}bi-heart{% endif %}" 
+                       onclick="toggleLike({{ post.id }})" id="like-icon-{{ post.id }}"></i>
+                    <i class="bi bi-chat" onclick="focusComment({{ post.id }})"></i>
+                    <i class="bi bi-send"></i>
+                </div>
+                <div class="mt-2">
+                    <strong>{{ post.likes_count }}</strong> likes
+                </div>
+            </div>
+
+            <!-- Post Caption -->
+            <div class="post-caption">
+                <span class="comment-author">{{ post.author.username }}</span>
+                {{ post.caption|linebreaksbr }}
+            </div>
+
+            <!-- View Comments Link -->
+            {% if post.comments_count > 0 %}
+                <div class="px-3 pb-2">
+                    <a href="{% url 'posts:post_detail' post.id %}" class="text-decoration-none text-muted">
+                        View all {{ post.comments_count }} comments
+                    </a>
+                </div>
+            {% endif %}
+
+            <!-- Add Comment Form -->
+            <div class="px-3 pb-3">
+                <form class="comment-form" data-post-id="{{ post.id }}">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Add a comment..." name="content">
+                        <button class="btn btn-outline-primary" type="submit">Post</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% empty %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <h5>No posts yet</h5>
+                <p class="text-muted">Follow users to see their posts here!</p>
+                <a href="{% url 'posts:create_post' %}" class="btn btn-primary-instagram">Create Your First Post</a>
+            </div>
+        </div>
+    {% endfor %}
+    
+    <!-- Fake Posts for Demonstration -->
+    {% if not posts %}
+        {% for i in "123456" %}
+            <div class="post-card">
+                <!-- Post Header -->
+                <div class="post-header">
+                    <div class="d-flex align-items-center">
+                        <img src="https://picsum.photos/seed/feeduser{{ i }}/100/100.jpg" alt="demo_user_{{ i }}" class="profile-avatar me-3">
+                        <div class="flex-grow-1">
+                            <a href="#" class="text-decoration-none text-dark fw-bold">
+                                demo_user_{{ i }}
+                            </a>
+                            <div class="text-muted small">{{ i|add:1 }} days ago</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Post Image -->
+                <div class="post-image-container">
+                    <img src="https://picsum.photos/seed/feedpost{{ i }}/600/600.jpg" alt="Demo post {{ i }}" class="post-image">
+                </div>
+
+                <!-- Post Actions -->
+                <div class="post-actions">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-heart" onclick="alert('Demo: Like functionality')"></i>
+                        <i class="bi bi-chat" onclick="alert('Demo: Comment functionality')"></i>
+                        <i class="bi bi-send" onclick="alert('Demo: Share functionality')"></i>
+                    </div>
+                    <div class="ms-auto">
+                        <i class="bi bi-bookmark" onclick="alert('Demo: Save functionality')"></i>
+                    </div>
+                </div>
+
+                <!-- Post Caption -->
+                <div class="post-caption">
+                    <strong>demo_user_{{ i }}</strong> This is a demo post caption for demonstration purposes. Check out this amazing photo! #demo #socialmedia #test
+                    <div class="text-muted small mt-1">{{ i|add:20 }} likes</div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <div class="comments-list">
+                        <div class="comment">
+                            <strong>commenter_{{ i }}</strong> Nice photo! 
+                            <small class="text-muted">{{ i|add:1 }}h ago</small>
+                        </div>
+                        <div class="comment">
+                            <strong>follower_{{ i }}</strong> Love this! 
+                            <small class="text-muted">{{ i|add:2 }}h ago</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Comment Form -->
+                    <form class="comment-form" onsubmit="alert('Demo: Comment functionality'); return false;">
+                        <input type="text" name="content" placeholder="Add a comment..." class="form-control">
+                        <button type="submit" class="btn btn-primary-instagram btn-sm">Post</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+<style>
+.story-empty {
+    background: var(--background-card);
+    border: 2px solid var(--border-color);
+    padding: 3px;
+}
+
+.story-empty .story-avatar {
+    filter: grayscale(100%);
+    opacity: 0.7;
+}
+
+.post-card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.post-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.post-image-container {
+    width: 100%;
+    max-height: 600px;
+    overflow: hidden;
+}
+
+.post-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.post-actions {
+    padding: 12px 16px;
+}
+
+.post-actions i {
+    font-size: 24px;
+    margin-right: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.post-actions i:hover {
+    color: var(--electric-pink);
+}
+
+.post-actions .liked {
+    color: var(--electric-pink);
+}
+
+.post-caption {
+    padding: 0 16px 12px;
+}
+
+.comment-author {
+    font-weight: 600;
+    margin-right: 8px;
+}
+
+.comment-form {
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.comment-form .form-control {
+    border: none;
+    border-radius: 0;
+    padding: 8px 0;
+}
+
+.comment-form .form-control:focus {
+    box-shadow: none;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.comment-form .btn {
+    border: none;
+    background: none;
+    color: var(--electric-pink);
+    font-weight: 600;
+}
+
+.comment-form .btn:hover {
+    color: var(--electric-pink-dark);
+}
+</style>
+
+{% block extra_js %}
+<script>
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function toggleLike(postId) {
+    const likeIcon = document.getElementById('like-icon-' + postId);
+    const isLiked = likeIcon.classList.contains('liked');
+    
+    fetch('/post/' + postId + '/like/', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.is_liked) {
+            likeIcon.classList.remove('bi-heart');
+            likeIcon.classList.add('bi-heart-fill', 'liked');
+        } else {
+            likeIcon.classList.remove('bi-heart-fill', 'liked');
+            likeIcon.classList.add('bi-heart');
+        }
+        
+        // Update likes count
+        const postCard = document.querySelector('[data-post-id="' + postId + '"]');
+        const likesCount = postCard.querySelector('.post-actions strong');
+        likesCount.textContent = data.likes_count;
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function focusComment(postId) {
+    const form = document.querySelector('[data-post-id="' + postId + '"] .comment-form input');
+    form.focus();
+}
+
+// Handle comment form submissions
+document.querySelectorAll('.comment-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const postId = this.dataset.postId;
+        const content = this.querySelector('input[name="content"]').value;
+        
+        if (!content.trim()) return;
+        
+        const formData = new FormData(this);
+        
+        fetch(`/post/${postId}/comment/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear the form
+                this.querySelector('input[name="content"]').value = '';
+                
+                // Show success message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    Comment added successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.main-content').insertBefore(alert, document.querySelector('.feed-container'));
+                
+                // Auto-dismiss after 3 seconds
+                setTimeout(() => {
+                    alert.remove();
+                }, 3000);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
+});
+</script>
+{% endblock %}

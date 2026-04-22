@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Profile - Hello World{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <h2 class="h3 mb-2">Edit Profile</h2>
+                    <p class="text-muted">Update your profile information and privacy settings</p>
+                </div>
+                
+                <form method="post" enctype="multipart/form-data" id="edit-profile-form">
+                    {% csrf_token %}
+                    
+                    <!-- Profile Picture Section -->
+                    <div class="text-center mb-4">
+                        <div class="position-relative d-inline-block">
+                            <img src="{{ form.instance.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                 alt="Profile Picture" 
+                                 class="profile-avatar-large mb-3" 
+                                 id="current-avatar">
+                            <label for="{{ form.profile_picture.id_for_label }}" 
+                                   class="position-absolute bottom-0 end-0 btn btn-sm btn-primary-instagram rounded-circle"
+                                   style="width: 40px; height: 40px;">
+                                <i class="bi bi-camera"></i>
+                            </label>
+                            {{ form.profile_picture }}
+                        </div>
+                        <small class="text-muted">Click camera to change profile picture</small>
+                        {% if form.profile_picture.errors %}
+                            <div class="text-danger small mt-2">{{ form.profile_picture.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Basic Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label text-secondary">
+                                <i class="bi bi-at me-1"></i>Username
+                            </label>
+                            {{ form.username }}
+                            {% if form.username.errors %}
+                                <div class="text-danger small mt-1">{{ form.username.errors }}</div>
+                            {% endif %}
+                            <small class="text-muted">Unique identifier for your profile</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.real_name.id_for_label }}" class="form-label text-secondary">
+                                <i class="bi bi-person me-1"></i>Real Name
+                            </label>
+                            {{ form.real_name }}
+                            {% if form.real_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.real_name.errors }}</div>
+                            {% endif %}
+                            <small class="text-muted">Your real name (optional)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.email.id_for_label }}" class="form-label text-secondary">
+                            <i class="bi bi-envelope me-1"></i>Email
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                        {% endif %}
+                        <small class="text-muted">Your email address (private)</small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.website.id_for_label }}" class="form-label text-secondary">
+                            <i class="bi bi-link-45deg me-1"></i>Website
+                        </label>
+                        {{ form.website }}
+                        {% if form.website.errors %}
+                            <div class="text-danger small mt-1">{{ form.website.errors }}</div>
+                        {% endif %}
+                        <small class="text-muted">Link to your personal website or portfolio</small>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="{{ form.bio.id_for_label }}" class="form-label text-secondary">
+                            <i class="bi bi-text-paragraph me-1"></i>Bio
+                        </label>
+                        {{ form.bio }}
+                        {% if form.bio.errors %}
+                            <div class="text-danger small mt-1">{{ form.bio.errors }}</div>
+                        {% endif %}
+                        <small class="text-muted">Tell us about yourself (max 500 characters)</small>
+                    </div>
+                    
+                    <!-- Privacy Settings -->
+                    <div class="border-top pt-4 mb-4">
+                        <h5 class="h6 mb-3 text-secondary">
+                            <i class="bi bi-shield-lock me-2"></i>Privacy Settings
+                        </h5>
+                        
+                        <div class="form-check form-switch">
+                            {{ form.is_private }}
+                            <label class="form-check-label" for="{{ form.is_private.id_for_label }}">
+                                <strong>Private Account</strong>
+                                <br>
+                                <small class="text-muted">Only approved followers can see your posts and stories</small>
+                            </label>
+                        </div>
+                        {% if form.is_private.errors %}
+                            <div class="text-danger small mt-1">{{ form.is_private.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'accounts:profile' user.username %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Profile
+                        </a>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-danger" onclick="confirmCancel()">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary-instagram">
+                                <i class="bi bi-check-lg me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-control {
+    background-color: var(--background-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    background-color: var(--background-card);
+    border-color: var(--electric-pink);
+    box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
+    color: var(--text-primary);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+}
+
+.form-check-input:checked {
+    background-color: var(--electric-pink);
+    border-color: var(--electric-pink);
+}
+
+.form-check-input:focus {
+    border-color: var(--electric-pink);
+    box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
+}
+
+input[type="file"][id*="profile_picture"] {
+    display: none;
+}
+
+.profile-avatar-large {
+    border: 4px solid var(--electric-pink);
+    box-shadow: 0 0 20px rgba(255, 20, 147, 0.3);
+}
+
+.border-top {
+    border-color: var(--border-color) !important;
+}
+
+.btn-outline-secondary {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--medium-gray);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+.btn-outline-danger {
+    border-color: var(--border-light);
+    color: var(--text-muted);
+}
+
+.btn-outline-danger:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Preview profile picture on selection
+    const profilePictureInput = document.getElementById('{{ form.profile_picture.id_for_label }}');
+    const currentAvatar = document.getElementById('current-avatar');
+    
+    profilePictureInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentAvatar.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Form validation
+    const form = document.getElementById('edit-profile-form');
+    form.addEventListener('submit', function(e) {
+        const username = document.getElementById('{{ form.username.id_for_label }}').value;
+        const bio = document.getElementById('{{ form.bio.id_for_label }}').value;
+        
+        if (username.length < 3) {
+            e.preventDefault();
+            alert('Username must be at least 3 characters long');
+            return;
+        }
+        
+        if (bio.length > 500) {
+            e.preventDefault();
+            alert('Bio must be less than 500 characters');
+            return;
+        }
+    });
+});
+
+function confirmCancel() {
+    if (confirm('Are you sure you want to discard your changes?')) {
+        window.location.href = '{% url "accounts:profile" user.username %}';
+    }
+}
+</script>
+{% endblock %}

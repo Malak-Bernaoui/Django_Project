@@ -1,0 +1,721 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Post - Hello World{% endblock %}
+
+{% block content %}
+<div class="create-post-container">
+    <div class="create-post-card">
+        <div class="create-post-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-arrow-left me-3 back-btn" onclick="history.back()" style="cursor: pointer; font-size: 1.5rem; color: var(--text-primary);"></i>
+                    <h2 class="create-post-title">Create New Post</h2>
+                </div>
+                <button type="submit" form="create-post-form" class="btn-share-post" id="share-btn" disabled>
+                    Share
+                </button>
+            </div>
+        </div>
+        
+        <div class="create-post-body">
+            <form method="post" enctype="multipart/form-data" id="create-post-form">
+                {% csrf_token %}
+                
+                <div class="upload-section">
+                    <div class="upload-area" id="upload-area">
+                        <div class="upload-content" id="upload-content">
+                            <i class="bi bi-image upload-icon"></i>
+                            <p class="upload-text">Drag photos here</p>
+                            <button type="button" class="btn-select-file" onclick="document.getElementById('{{ form.image.id_for_label }}').click()">
+                                Select from computer
+                            </button>
+                        </div>
+                        <div class="image-preview-container" id="image-preview-container" style="display: none;">
+                            <img id="image-preview" src="#" alt="Image preview" class="preview-image">
+                            <button type="button" class="btn-remove-image" onclick="removeImage()">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {{ form.image }}
+                    {% if form.image.errors %}
+                        <div class="error-message">{{ form.image.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="caption-section">
+                    <div class="caption-input-wrapper">
+                        <textarea 
+                            name="caption" 
+                            id="{{ form.caption.id_for_label }}" 
+                            class="caption-input" 
+                            placeholder="Write a caption..."
+                            rows="3"
+                            maxlength="2200">{{ form.caption.value|default:'' }}</textarea>
+                        <div class="caption-footer">
+                            <div class="character-counter" id="char-counter">
+                                <span id="current-length">{{ form.caption.value|length|default:0 }}</span>/2200
+                            </div>
+                            <div class="caption-actions">
+                                <button type="button" class="btn-emoji" onclick="toggleEmojiPicker()">
+                                    <i class="bi bi-emoji-smile"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% if form.caption.errors %}
+                        <div class="error-message">{{ form.caption.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <!-- Emoji Picker -->
+                <div class="emoji-picker" id="emoji-picker" style="display: none;">
+                    <div class="emoji-picker-header">
+                        <span class="emoji-picker-title">Emoji</span>
+                        <button type="button" class="btn-close-emoji" onclick="toggleEmojiPicker()">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="emoji-categories">
+                        <button type="button" class="emoji-category active" data-category="smileys">Smileys</button>
+                        <button type="button" class="emoji-category" data-category="people">People</button>
+                        <button type="button" class="emoji-category" data-category="animals">Animals</button>
+                        <button type="button" class="emoji-category" data-category="food">Food</button>
+                        <button type="button" class="emoji-category" data-category="activities">Activities</button>
+                        <button type="button" class="emoji-category" data-category="travel">Travel</button>
+                        <button type="button" class="emoji-category" data-category="objects">Objects</button>
+                        <button type="button" class="emoji-category" data-category="symbols">Symbols</button>
+                        <button type="button" class="emoji-category" data-category="flags">Flags</button>
+                    </div>
+                    <div class="emoji-grid" id="emoji-grid">
+                        <!-- Emojis will be loaded here -->
+                    </div>
+                </div>
+                
+                <div class="post-actions">
+                    <button type="button" class="btn-cancel" onclick="window.location.href='{% url 'posts:feed' %}'">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.create-post-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.create-post-card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.create-post-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-card);
+}
+
+.create-post-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.btn-share-post {
+    background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-share-post:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 20, 147, 0.3);
+}
+
+.btn-share-post:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.create-post-body {
+    padding: 20px;
+}
+
+.upload-section {
+    margin-bottom: 24px;
+}
+
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.3s ease;
+    background: var(--background-light);
+}
+
+.upload-area:hover {
+    border-color: var(--electric-pink);
+    background: rgba(255, 20, 147, 0.02);
+}
+
+.upload-area.has-image {
+    border: none;
+    background: transparent;
+    min-height: auto;
+}
+
+.upload-content {
+    text-align: center;
+    padding: 40px;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: block;
+}
+
+.upload-text {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+
+.btn-select-file {
+    background: var(--electric-pink);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-select-file:hover {
+    background: var(--electric-pink-dark);
+    transform: translateY(-1px);
+}
+
+.image-preview-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.btn-remove-image {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-remove-image:hover {
+    background: rgba(255, 20, 147, 0.8);
+    transform: scale(1.1);
+}
+
+.caption-section {
+    margin-bottom: 24px;
+}
+
+.caption-input-wrapper {
+    position: relative;
+}
+
+.caption-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    resize: none;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    padding: 0;
+    outline: none;
+    font-family: inherit;
+}
+
+.caption-input::placeholder {
+    color: var(--text-muted);
+}
+
+.caption-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.character-counter {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.character-counter.warning {
+    color: #f39c12;
+}
+
+.character-counter.danger {
+    color: #e74c3c;
+}
+
+.caption-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-emoji {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-emoji:hover {
+    color: var(--electric-pink);
+    background: rgba(255, 20, 147, 0.1);
+}
+
+.post-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-cancel {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel:hover {
+    color: var(--text-primary);
+    border-color: var(--text-primary);
+}
+
+.error-message {
+    color: #e74c3c;
+    font-size: 0.85rem;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+/* Hide the default file input */
+input[type="file"] {
+    display: none;
+}
+
+/* Emoji Picker Styles */
+.emoji-picker {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    margin-top: 12px;
+    overflow: hidden;
+    animation: slideUp 0.3s ease;
+}
+
+.emoji-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--background-card);
+}
+
+.emoji-picker-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.btn-close-emoji {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-close-emoji:hover {
+    color: var(--electric-pink);
+    background: rgba(255, 20, 147, 0.1);
+}
+
+.emoji-categories {
+    display: flex;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.emoji-categories::-webkit-scrollbar {
+    display: none;
+}
+
+.emoji-category {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.emoji-category:hover {
+    color: var(--text-primary);
+    background: var(--background-light);
+}
+
+.emoji-category.active {
+    color: var(--electric-pink);
+    background: rgba(255, 20, 147, 0.1);
+    font-weight: 600;
+}
+
+.emoji-grid {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+}
+
+.emoji-grid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.emoji-grid::-webkit-scrollbar-track {
+    background: var(--background-light);
+}
+
+.emoji-grid::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.emoji-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.emoji-item {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+}
+
+.emoji-item:hover {
+    background: rgba(255, 20, 147, 0.1);
+    transform: scale(1.2);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .create-post-container {
+        padding: 10px;
+    }
+    
+    .create-post-header {
+        padding: 12px 16px;
+    }
+    
+    .create-post-body {
+        padding: 16px;
+    }
+    
+    .upload-area {
+        min-height: 250px;
+    }
+    
+    .image-preview-container {
+        height: 300px;
+    }
+    
+    .emoji-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .emoji-categories {
+        padding: 8px 12px;
+    }
+    
+    .emoji-category {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+}
+</style>
+
+<script>
+// Image preview functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('{{ form.image.id_for_label }}');
+    const uploadArea = document.getElementById('upload-area');
+    const uploadContent = document.getElementById('upload-content');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    const imagePreview = document.getElementById('image-preview');
+    const captionInput = document.getElementById('{{ form.caption.id_for_label }}');
+    const charCounter = document.getElementById('char-counter');
+    const currentLength = document.getElementById('current-length');
+    const shareBtn = document.getElementById('share-btn');
+    
+    // File input change handler
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                uploadContent.style.display = 'none';
+                imagePreviewContainer.style.display = 'block';
+                uploadArea.classList.add('has-image');
+                updateShareButton();
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Drag and drop functionality
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.borderColor = 'var(--electric-pink)';
+        this.style.background = 'rgba(255, 20, 147, 0.05)';
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.style.borderColor = 'var(--border-color)';
+        this.style.background = 'var(--background-light)';
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.style.borderColor = 'var(--border-color)';
+        this.style.background = 'var(--background-light)';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+            fileInput.files = files;
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+        }
+    });
+    
+    // Character counter
+    captionInput.addEventListener('input', function(e) {
+        const length = e.target.value.length;
+        currentLength.textContent = length;
+        
+        // Update counter color based on length
+        charCounter.classList.remove('warning', 'danger');
+        if (length > 2100) {
+            charCounter.classList.add('danger');
+        } else if (length > 2000) {
+            charCounter.classList.add('warning');
+        }
+        
+        updateShareButton();
+    });
+    
+    // Update share button state
+    function updateShareButton() {
+        const hasImage = fileInput.files.length > 0;
+        const hasCaption = captionInput.value.trim().length > 0;
+        
+        if (hasImage && hasCaption) {
+            shareBtn.disabled = false;
+        } else {
+            shareBtn.disabled = true;
+        }
+    }
+    
+    // Remove image function
+    window.removeImage = function() {
+        fileInput.value = '';
+        uploadContent.style.display = 'block';
+        imagePreviewContainer.style.display = 'none';
+        uploadArea.classList.remove('has-image');
+        updateShareButton();
+    }
+    
+    // Emoji picker functionality
+    let currentCategory = 'smileys';
+    const emojiData = {
+        smileys: ['\ud83d\ude00', '\ud83d\ude03', '\ud83d\ude04', '\ud83d\ude01', '\ud83d\ude05', '\ud83d\ude02', '\ud83e\udd23', '\ud83d\ude0a', '\ud83d\ude07', '\ud83d\ude42', '\ud83d\ude09', '\ud83d\ude0c', '\ud83d\ude0d', '\ud83e\udd70', '\ud83d\ude18', '\ud83d\ude17', '\ud83d\ude19', '\ud83d\ude1a', '\ud83d\ude0b', '\ud83d\ude1b', '\ud83d\ude1c', '\ud83e\udd2a', '\ud83e\udd17', '\ud83e\udd2d', '\ud83e\udd2b', '\ud83e\udd14', '\ud83e\udd10', '\ud83e\udd28', '\ud83d\ude10', '\ud83d\ude11', '\ud83d\ude36', '\ud83d\ude0f', '\ud83d\ude12', '\ud83d\ude44', '\ud83d\ude2c', '\ud83e\udd25', '\ud83e\udd22', '\ud83d\ude2d', '\ud83d\ude2a', '\ud83d\ude35', '\ud83e\udd75', '\ud83d\ude0e', '\ud83e\udd11', '\ud83e\udd20', '\ud83e\udd15', '\ud83d\ude1f', '\ud83d\ude41', '\ud83e\udd2e', '\ud83e\udd27', '\ud83e\udd75', '\ud83e\udd76', '\ud83d\ude37', '\ud83e\udd12', '\ud83e\udd15', '\ud83e\udd22', '\ud83e\udd2e', '\ud83e\udd27', '\ud83e\udd75', '\ud83e\udd76'],
+        people: ['\ud83d\udc64', '\ud83d\udc68', '\ud83d\udc69', '\ud83d\udc74', '\ud83d\udc75', '\ud83d\udc76', '\ud83d\udc77', '\ud83d\udc78', '\ud83d\udc79', '\ud83d\udc7a', '\ud83d\udc7b', '\ud83d\udc7c', '\ud83d\udc7d', '\ud83d\udc7e', '\ud83d\udc7f', '\ud83d\udc80', '\ud83d\udc81', '\ud83d\udc82', '\ud83d\udc83', '\ud83d\udc84', '\ud83d\udc85', '\ud83d\udc86', '\ud83d\udc87', '\ud83d\ude4a', '\ud83d\ude4b', '\ud83d\ude4c', '\ud83d\ude4d', '\ud83d\ude4e', '\ud83d\ude4f', '\ud83d\ude3a', '\ud83d\ude38', '\ud83d\ude3b', '\ud83d\ude3c', '\ud83d\ude3d', '\ud83d\ude3e', '\ud83d\ude39', '\ud83e\udd26', '\ud83d\ude48', '\ud83d\ude49', '\ud83d\ude4a'],
+        animals: ['\ud83d\udc36', '\ud83d\udc31', '\ud83d\udc2d', '\ud83d\udc39', '\ud83d\udc30', '\ud83e\udd8a', '\ud83d\udc3b', '\ud83d\udc3c', '\ud83d\udc28', '\ud83d\udc2f', '\ud83d\udc35', '\ud83e\udd81', '\ud83d\udc2e', '\ud83d\udc37', '\ud83e\udd84', '\ud83d\udc38', '\ud83d\udc2a', '\ud83d\udc34', '\ud83e\udd85', '\ud83d\udc3a', '\ud83d\udc3b', '\ud83d\udc3e', '\ud83d\udc3f', '\ud83e\udd8b', '\ud83d\udc20', '\ud83d\udc07', '\ud83e\udd86', '\ud83d\udc19', '\ud83d\udc1b', '\ud83d\udc1c', '\ud83d\udc1d', '\ud83d\udc1e', '\ud83d\udc1f', '\ud83d\udc20', '\ud83e\udd95', '\ud83e\udd9b', '\ud83e\udd94', '\ud83d\udc23', '\ud83d\udc24', '\ud83d\udc25', '\ud83d\udc26', '\ud83d\udc27', '\ud83e\udd8c', '\ud83d\udc22', '\ud83d\udc21', '\ud83e\udd89', '\ud83e\udd8d'],
+        food: ['\ud83c\udf4e', '\ud83c\udf4c', '\ud83c\udf4a', '\ud83c\udf4b', '\ud83c\udf49', '\ud83c\udf47', '\ud83c\udf53', '\ud83c\udf51', '\ud83c\udf52', '\ud83e\uded0', '\ud83c\udf4d', '\ud83c\udf46', '\ud83c\udf45', '\ud83e\udd5d', '\ud83c\udf3d', '\ud83c\udf5e', '\ud83c\udf54', '\ud83c\udf55', '\ud83c\udf2f', '\ud83c\udf2e', '\ud83e\uddc0', '\ud83e\uddc1', '\ud83e\uddc2', '\ud83e\uddc3', '\ud83c\udf56', '\ud83c\udf57', '\ud83c\udf71', '\ud83c\udf63', '\ud83c\udf5c', '\ud83c\udf73', '\ud83c\udf65', '\ud83c\udf2d', '\ud83c\udf2b', '\ud83c\udf2c', '\ud83c\udf30', '\ud83c\udf5a', '\ud83c\udf59', '\ud83c\udf58', '\ud83c\udf2a', '\ud83e\udd50', '\ud83e\udd51', '\ud83e\udd52', '\ud83e\udd53', '\ud83c\udf69', '\ud83c\udf68', '\ud83c\udf67', '\ud83c\udf66', '\ud83e\udd64', '\ud83e\udd65', '\ud83e\udd61', '\ud83e\udd62', '\ud83e\udd63', '\ud83e\udd6a', '\ud83e\udd6b', '\ud83e\udd6c', '\ud83e\udd59', '\ud83e\udd5a', '\ud83e\udd5b', '\ud83e\udd5c', '\ud83e\udd5e', '\ud83e\udd5f', '\ud83e\udd60'],
+        activities: ['\u26bd', '\ud83c\udfc0', '\ud83c\udfc8', '\u26be', '\ud83c\udfbe', '\ud83c\udfd0', '\ud83c\udfd1', '\ud83c\udfd2', '\ud83c\udfd3', '\ud83c\udff8', '\ud83c\udff9', '\ud83c\udffa', '\ud83c\udffb', '\ud83c\udfc9', '\ud83c\udfb1', '\ud83c\udfb2', '\ud83c\udfb3', '\ud83c\udfbd', '\ud83c\udfb8', '\ud83c\udfba', '\ud83c\udfbb', '\ud83c\udfaa', '\ud83c\udfaf', '\ud83c\udfb0', '\ud83c\udfb2', '\ud83c\udfd4', '\ud83c\udfd5', '\ud83c\udfd6', '\ud83c\udfd7', '\ud83c\udfd8', '\ud83c\udfd9', '\ud83c\udfda', '\ud83c\udfdb', '\ud83c\udfdc', '\ud83c\udfdd', '\ud83c\udfde', '\ud83c\udfdf', '\ud83c\udfe0', '\ud83c\udfe1', '\ud83c\udfe2', '\ud83c\udfe3', '\ud83c\udfe4', '\ud83c\udfe5', '\ud83c\udfe6', '\ud83c\udfe7', '\ud83c\udfe8', '\ud83c\udfe9', '\ud83c\udfea', '\ud83c\udfeb', '\ud83c\udfec', '\ud83c\udfed', '\ud83c\udfee', '\ud83c\udfef', '\ud83c\udff0', '\ud83c\udff1', '\ud83c\udff2', '\ud83c\udff3'],
+        travel: ['\ud83c\udf0d', '\ud83c\udf0e', '\ud83c\udf09', '\ud83c\udf0f', '\ud83c\udf10', '\ud83c\udf11', '\ud83c\udf12', '\ud83c\udf13', '\ud83c\udf14', '\ud83c\udf15', '\ud83c\udf16', '\ud83c\udf17', '\ud83c\udf18', '\ud83c\udf19', '\ud83c\udf1a', '\ud83c\udf1b', '\ud83c\udf1c', '\ud83c\udf1d', '\ud83c\udf1e', '\ud83c\udf1f', '\ud83c\udf20', '\ud83c\udf21', '\ud83c\udf22', '\ud83c\udf23', '\ud83c\udf24', '\ud83c\udf25', '\ud83c\udf26', '\ud83c\udf27', '\ud83c\udf28', '\ud83c\udf29', '\ud83c\udf2a', '\ud83c\udf2b', '\ud83c\udf2c', '\ud83c\udf2d', '\ud83c\udf2e', '\ud83c\udf2f', '\ud83c\udf30', '\ud83c\udf31', '\ud83c\udf32', '\ud83c\udf33', '\ud83c\udf34', '\ud83c\udf35', '\ud83c\udf36', '\ud83c\udf37', '\ud83c\udf38', '\ud83c\udf39', '\ud83c\udf3a', '\ud83c\udf3b', '\ud83c\udf3c', '\ud83c\udf3d', '\ud83c\udf3e', '\ud83c\udf3f', '\ud83c\udf40', '\ud83c\udf41', '\ud83c\udf42', '\ud83c\udf43', '\ud83c\udf44', '\ud83c\udf45', '\ud83c\udf46', '\ud83c\udf47', '\ud83c\udf48', '\ud83c\udf49', '\ud83c\udf4a', '\ud83c\udf4b', '\ud83c\udf4c', '\ud83c\udf4d', '\ud83c\udf4e', '\ud83c\udf4f'],
+        objects: ['\ud83d\uddbc', '\ud83c\udfe0', '\ud83c\udfe1', '\ud83c\udfe2', '\ud83c\udfe3', '\ud83c\udfe4', '\ud83c\udfe5', '\ud83c\udfe6', '\ud83c\udfe7', '\ud83c\udfe8', '\ud83c\udfe9', '\ud83c\udfea', '\ud83c\udfeb', '\ud83c\udfec', '\ud83c\udfed', '\ud83c\udfee', '\ud83c\udfef', '\ud83c\udff0', '\ud83c\udff1', '\ud83c\udff2', '\ud83c\udff3', '\ud83c\udff4', '\ud83c\udff5', '\ud83c\udff6', '\ud83c\udff7', '\ud83c\udff8', '\ud83c\udff9', '\ud83c\udffa', '\ud83c\udffb', '\ud83c\udffc', '\ud83c\udffd', '\ud83c\udffe', '\ud83c\udfff', '\u2611', '\u2714', '\u2716', '\u2717', '\u3030', '\u27b0', '\u27b1', '\u303d', '\u26a0', '\u26a1', '\u2622', '\u2623', '\u2626', '\u262e', '\u2712', '\u2713', '\u2764', '\u2765', '\u2665', '\u2666', '\u2663', '\u2660', '\u262f', '\u2600', '\u2601', '\u262a', '\u262b', '\u263c', '\u263d', '\u263e', '\u263f', '\u2640', '\u2641', '\u2642', '\u267e', '\u267b', '\u267c', '\u267d', '\u26a7', '\u2694', '\u2622', '\u2625'],
+        symbols: ['\u2714', '\u2716', '\u2795', '\u2796', '\u2797', '\u27b0', '\u27b1', '\u3030', '\u303d', '\u26a0', '\u26a1', '\u2622', '\u2623', '\u2626', '\u262e', '\u2712', '\u2713', '\u2764', '\u2765', '\u2665', '\u2666', '\u2663', '\u2660', '\u262f', '\u2600', '\u2601', '\u262a', '\u262b', '\u263c', '\u263d', '\u263e', '\u263f', '\u2640', '\u2641', '\u2642', '\u267e', '\u267b', '\u267c', '\u267d', '\u26a7', '\u2694', '\u2622', '\u2625', '\u25c6', '\u25c7', '\u25c8', '\u25c9', '\u25ca', '\u25cb', '\u25cc', '\u25cd', '\u25ce', '\u25cf', '\u25d0', '\u25d1', '\u25d2', '\u25d3', '\u25d4', '\u25d5', '\u25d6', '\u25d7', '\u25d8', '\u25d9', '\u25da', '\u25db', '\u25dc', '\u25dd', '\u25de', '\u25df', '\u25e0', '\u25e1', '\u25e2', '\u25e3', '\u25e4', '\u25e5', '\u25e6', '\u25e7', '\u25e8', '\u25e9', '\u25ea', '\u25eb', '\u25ec', '\u25ed', '\u25ee', '\u25ef', '\u25f0', '\u25f1', '\u25f2', '\u25f3'],
+        flags: ['\ud83c\udde6\ud83c\uddf8', '\ud83c\udde7\ud83c\uddf7', '\ud83c\udde9\ud83c\uddea', '\ud83c\uddea\ud83c\uddf8', '\ud83c\uddeb\ud83c\uddf7', '\ud83c\uddec\ud83c\udde7', '\ud83c\uddee\ud83c\uddf9', '\ud83c\uddf1\ud83c\uddee', '\ud83c\uddf0\ud83c\uddf7', '\ud83c\uddf2\ud83c\udffd', '\ud83c\uddf3\ud83c\uddf0', '\ud83c\uddf4\ud83c\uddf2', '\ud83c\uddf5\ud83c\uddf1', '\ud83c\uddf6\ud83c\udde6', '\ud83c\uddf7\ud83c\uddf4', '\ud83c\uddf8\ud83c\uddfe', '\ud83c\uddf9\ud83c\uddf4', '\ud83c\uddfa\ud83c\uddf8', '\ud83c\uddfb\ud83c\uddfa', '\ud83c\uddfc\ud83c\uddfb', '\ud83c\uddfd\ud83c\uddfc', '\ud83c\uddfe\ud83c\uddfc', '\ud83c\uddff\ud83c\uddea', '\ud83c\ude01\ud83c\ude32', '\ud83c\ude02\ud83c\ude37', '\ud83c\ude03\ud83c\ude49', '\ud83c\ude04\ud83c\ude2a', '\ud83c\ude05\ud83c\ude1c', '\ud83c\ude06\ud83c\ude2e', '\ud83c\ude07\ud83c\ude1a', '\ud83c\ude08\ud83c\ude34', '\ud83c\ude09\ud83c\ude33', '\ud83c\ude0a\ud83c\ude38', '\ud83c\ude0b\ud83c\ude3a', '\ud83c\ude0c\ud83c\ude30', '\ud83c\ude0d\ud83c\ude35', '\ud83c\ude0e\ud83c\ude2c', '\ud83c\ude0f\ud83c\ude28', '\ud83c\ude10\ud83c\ude32', '\ud83c\ude11\ud83c\ude37', '\ud83c\ude12\ud83c\ude3c', '\ud83c\ude13\ud83c\ude4b', '\ud83c\ude14\ud83c\ude3d', '\ud83c\ude15\ud83c\ude3f', '\ud83c\ude16\ud83c\ude30', '\ud83c\ude17\ud83c\ude35', '\ud83c\ude18\ud83c\ude39', '\ud83c\ude19\ud83c\ude3e', '\ud83c\ude1a\ud83c\ude40', '\ud83c\ude1b\ud83c\ude41', '\ud83c\ude1c\ud83c\ude42', '\ud83c\ude1d\ud83c\ude43', '\ud83c\ude1e\ud83c\ude44', '\ud83c\ude1f\ud83c\ude45', '\ud83c\ude20\ud83c\ude46', '\ud83c\ude21\ud83c\ude47', '\ud83c\ude22\ud83c\ude48', '\ud83c\ude23\ud83c\ude49', '\ud83c\ude24\ud83c\ude4a', '\ud83c\ude25\ud83c\ude4b', '\ud83c\ude26\ud83c\ude4c', '\ud83c\ude27\ud83c\ude4d', '\ud83c\ude28\ud83c\ude4e', '\ud83c\ude29\ud83c\ude4f', '\ud83c\ude2a\ud83c\ude50', '\ud83c\ude2b\ud83c\ude51', '\ud83c\ude2c\ud83c\ude52', '\ud83c\ude2d\ud83c\ude53', '\ud83c\ude2e\ud83c\ude54', '\ud83c\ude2f\ud83c\ude55', '\ud83c\ude30\ud83c\ude56', '\ud83c\ude31\ud83c\ude57', '\ud83c\ude32\ud83c\ude58', '\ud83c\ude33\ud83c\ude59', '\ud83c\ude34\ud83c\ude5a', '\ud83c\ude35\ud83c\ude5b', '\ud83c\ude36\ud83c\ude5c', '\ud83c\ude37\ud83c\ude5d', '\ud83c\ude38\ud83c\ude5e', '\ud83c\ude39\ud83c\ude5f', '\ud83c\ude3a\ud83c\ude60', '\ud83c\ude3b\ud83c\ude61', '\ud83c\ude3c\ud83c\ude62', '\ud83c\ude3d\ud83c\ude63', '\ud83c\ude3e\ud83c\ude64', '\ud83c\ude3f\ud83c\ude65', '\ud83c\ude40\ud83c\ude66', '\ud83c\ude41\ud83c\ude67', '\ud83c\ude42\ud83c\ude68', '\ud83c\ude43\ud83c\ude69', '\ud83c\ude44\ud83c\ude6a', '\ud83c\ude45\ud83c\ude6b', '\ud83c\ude46\ud83c\ude6c', '\ud83c\ude47\ud83c\ude6d', '\ud83c\ude48\ud83c\ude6e', '\ud83c\ude49\ud83c\ude6f', '\ud83c\ude4a\ud83c\ude70', '\ud83c\ude4b\ud83c\ude71', '\ud83c\ude4c\ud83c\ude72', '\ud83c\ude4d\ud83c\ude73', '\ud83c\ude4e\ud83c\ude74', '\ud83c\ude4f\ud83c\ude75', '\ud83c\ude50\ud83c\ude76', '\ud83c\ude51\ud83c\ude77', '\ud83c\ude52\ud83c\ude78', '\ud83c\ude53\ud83c\ude79', '\ud83c\ude54\ud83c\ude7a', '\ud83c\ude55\ud83c\ude7b', '\ud83c\ude56\ud83c\ude7c', '\ud83c\ude57\ud83c\ude7d', '\ud83c\ude58\ud83c\ude7e', '\ud83c\ude59\ud83c\ude7f', '\ud83c\ude5a\ud83c\ude80', '\ud83c\ude5b\ud83c\ude81', '\ud83c\ude5c\ud83c\ude82', '\ud83c\ude5d\ud83c\ude83', '\ud83c\ude5e\ud83c\ude84', '\ud83c\ude5f\ud83c\ude85', '\ud83c\ude60\ud83c\ude86', '\ud83c\ude61\ud83c\ude87', '\ud83c\ude62\ud83c\ude88', '\ud83c\ude63\ud83c\ude89', '\ud83c\ude64\ud83c\ude8a', '\ud83c\ude65\ud83c\ude8b', '\ud83c\ude66\ud83c\ude8c', '\ud83c\ude67\ud83c\ude8d', '\ud83c\ude68\ud83c\ude8e', '\ud83c\ude69\ud83c\ude8f', '\ud83c\ude6a\ud83c\ude90', '\ud83c\ude6b\ud83c\ude91', '\ud83c\ude6c\ud83c\ude92', '\ud83c\ude6d\ud83c\ude93', '\ud83c\ude6e\ud83c\ude94', '\ud83c\ude6f\ud83c\ude95', '\ud83c\ude70\ud83c\ude96', '\ud83c\ude71\ud83c\ude97', '\ud83c\ude72\ud83c\ude98', '\ud83c\ude73\ud83c\ude99', '\ud83c\ude74\ud83c\ude9a', '\ud83c\ude75\ud83c\ude9b', '\ud83c\ude76\ud83c\ude9c', '\ud83c\ude77\ud83c\ude9d', '\ud83c\ude78\ud83c\ude9e', '\ud83c\ude79\ud83c\ude9f', '\ud83c\ude7a\ud83c\udea0', '\ud83c\ude7b\ud83c\udea1', '\ud83c\ude7c\ud83c\udea2', '\ud83c\ude7d\ud83c\udea3', '\ud83c\ude7e\ud83c\udea4', '\ud83c\ude7f\ud83c\udea5', '\ud83c\ude80\ud83c\udea6', '\ud83c\ude81\ud83c\udea7', '\ud83c\ude82\ud83c\udea8', '\ud83c\ude83\ud83c\udea9', '\ud83c\ude84\ud83c\udeaa', '\ud83c\ude85\ud83c\udeab', '\ud83c\ude86\ud83c\udeac', '\ud83c\ude87\ud83c\udead', '\ud83c\ude88\ud83c\udeae', '\ud83c\ude89\ud83c\udeaf', '\ud83c\ude8a\ud83c\udeb0', '\ud83c\ude8b\ud83c\udeb1', '\ud83c\ude8c\ud83c\udeb2', '\ud83c\ude8d\ud83c\udeb3', '\ud83c\ude8e\ud83c\udeb4', '\ud83c\ude8f\ud83c\udeb5', '\ud83c\ude90\ud83c\udeb6', '\ud83c\ude91\ud83c\udeb7', '\ud83c\ude92\ud83c\udeb8', '\ud83c\ude93\ud83c\udeb9', '\ud83c\ude94\ud83c\udeba', '\ud83c\ude95\ud83c\udebb', '\ud83c\ude96\ud83c\udebc', '\ud83c\ude97\ud83c\udebd', '\ud83c\ude98\ud83c\udebe', '\ud83c\ude99\ud83c\udebf', '\ud83c\ude9a\ud83c\udec0', '\ud83c\ude9b\ud83c\udec1', '\ud83c\ude9c\ud83c\udec2', '\ud83c\ude9d\ud83c\udec3', '\ud83c\ude9e\ud83c\udec4', '\ud83c\ude9f\ud83c\udec5', '\ud83c\udea0\ud83c\udec6', '\ud83c\udea1\ud83c\udec7', '\ud83c\udea2\ud83c\udec8', '\ud83c\udea3\ud83c\udec9', '\ud83c\udea4\ud83c\udeca', '\ud83c\udea5\ud83c\udecb', '\ud83c\udea6\ud83c\udecc', '\ud83c\udea7\ud83c\udecd', '\ud83c\udea8\ud83c\udece', '\ud83c\udea9\ud83c\udecf', '\ud83c\udeaa\ud83c\uded0', '\ud83c\udeab\ud83c\uded1', '\ud83c\udeac\ud83c\uded2', '\ud83c\udead\ud83c\uded3', '\ud83c\udeae\ud83c\uded4', '\ud83c\udeaf\ud83c\uded5', '\ud83c\udeb0\ud83c\uded6', '\ud83c\udeb1\ud83c\uded7', '\ud83c\udeb2\ud83c\uded8', '\ud83c\udeb3\ud83c\uded9', '\ud83c\udeb4\ud83c\udeda', '\ud83c\udeb5\ud83c\udedb', '\ud83c\udeb6\ud83c\udedc', '\ud83c\udeb7\ud83c\udded', '\ud83c\udeb8\ud83c\udede', '\ud83c\udeb9\ud83c\udedf', '\ud83c\udeba\ud83c\udee0', '\ud83c\udebb\ud83c\udee1', '\ud83c\udebc\ud83c\udee2', '\ud83c\udebd\ud83c\udee3', '\ud83c\udebe\ud83c\udee4', '\ud83c\udebf\ud83c\udee5', '\ud83c\udec0\ud83c\udee6', '\ud83c\udec1\ud83c\udee7', '\ud83c\udec2\ud83c\udee8', '\ud83c\udec3\ud83c\udee9', '\ud83c\udec4\ud83c\udeea', '\ud83c\udec5\ud83c\udeeb', '\ud83c\udec6\ud83c\udeec', '\ud83c\udec7\ud83c\udeed', '\ud83c\udec8\ud83c\udeee', '\ud83c\udec9\ud83c\udeef', '\ud83c\udeca\ud83c\uddf0', '\ud83c\udecb\ud83c\uddf1', '\ud83c\udecc\ud83c\uddf2', '\ud83c\udecd\ud83c\uddf3', '\ud83c\udede\ud83c\uddf4', '\ud83c\uddf0\ud83c\uddf5', '\ud83c\uddf1\ud83c\uddf6', '\ud83c\uddf2\ud83c\uddf7', '\ud83c\uddf3\ud83c\uddf8', '\ud83c\uddf4\ud83c\uddf9', '\ud83c\uddf5\ud83c\uddfa', '\ud83c\uddf6\ud83c\uddfb', '\ud83c\uddf7\ud83c\uddfc', '\ud83c\uddf8\ud83c\uddfd', '\ud83c\uddf9\ud83c\uddfe', '\ud83c\uddfa\ud83c\uddff']
+    };
+    
+    // Toggle emoji picker
+    window.toggleEmojiPicker = function() {
+        const emojiPicker = document.getElementById('emoji-picker');
+        const isVisible = emojiPicker.style.display !== 'none';
+        
+        if (isVisible) {
+            emojiPicker.style.display = 'none';
+        } else {
+            emojiPicker.style.display = 'block';
+            loadEmojis(currentCategory);
+        }
+    };
+    
+    // Load emojis for current category
+    function loadEmojis(category) {
+        const emojiGrid = document.getElementById('emoji-grid');
+        const emojis = emojiData[category] || emojiData.smileys;
+        
+        let html = '';
+        emojis.forEach(emoji => {
+            html += `<button type="button" class="emoji-item" onclick="insertEmoji('${emoji}')">${emoji}</button>`;
+        });
+        
+        emojiGrid.innerHTML = html;
+    }
+    
+    // Insert emoji into caption
+    window.insertEmoji = function(emoji) {
+        const captionInput = document.getElementById('{{ form.caption.id_for_label }}');
+        const start = captionInput.selectionStart;
+        const end = captionInput.selectionEnd;
+        const text = captionInput.value;
+        
+        // Insert emoji at cursor position
+        captionInput.value = text.substring(0, start) + emoji + text.substring(end);
+        
+        // Set cursor position after emoji
+        captionInput.selectionStart = captionInput.selectionEnd = start + emoji.length;
+        
+        // Trigger input event to update character counter
+        const event = new Event('input', { bubbles: true });
+        captionInput.dispatchEvent(event);
+        
+        // Focus back to input
+        captionInput.focus();
+    };
+    
+    // Category switching
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('emoji-category')) {
+            // Remove active class from all categories
+            document.querySelectorAll('.emoji-category').forEach(cat => {
+                cat.classList.remove('active');
+            });
+            
+            // Add active class to clicked category
+            e.target.classList.add('active');
+            
+            // Load emojis for selected category
+            currentCategory = e.target.dataset.category;
+            loadEmojis(currentCategory);
+        }
+    });
+    
+    // Close emoji picker when clicking outside
+    document.addEventListener('click', function(e) {
+        const emojiPicker = document.getElementById('emoji-picker');
+        const emojiButton = document.querySelector('.btn-emoji');
+        
+        if (!emojiPicker.contains(e.target) && !emojiButton.contains(e.target)) {
+            emojiPicker.style.display = 'none';
+        }
+    });
+    
+    // Form submission loading state
+    document.getElementById('create-post-form').addEventListener('submit', function(e) {
+        shareBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sharing...';
+        shareBtn.disabled = true;
+    });
+});
+</script>
+{% endblock %}

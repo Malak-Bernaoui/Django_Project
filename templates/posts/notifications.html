@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications - Instagram Clone{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Notifications</h5>
+                
+                <!-- Mark all as read button -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Your recent activity</span>
+                    <button class="btn btn-sm btn-outline-primary" id="mark-all-read">
+                        Mark all as read
+                    </button>
+                </div>
+                
+                <!-- Notifications List -->
+                <div id="notifications-list">
+                    <!-- Notifications will be loaded here -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-bell display-4 text-muted mb-3"></i>
+                        <h6>No notifications yet</h6>
+                        <p class="text-muted">When people interact with your posts, you'll see them here</p>
+                    </div>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div id="notifications-loading" class="text-center py-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.notification-item {
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 0;
+    transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+    background-color: var(--background-light);
+}
+
+.notification-item.unread {
+    background-color: #f8f9fa;
+    border-left: 3px solid var(--instagram-primary);
+}
+
+.notification-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.notification-text {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotifications();
+    
+    // Mark all as read functionality
+    document.getElementById('mark-all-read').addEventListener('click', function() {
+        fetch('/posts/notifications/mark-read/', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove unread class from all notifications
+                document.querySelectorAll('.notification-item.unread').forEach(item => {
+                    item.classList.remove('unread');
+                });
+                // Update notification badge
+                updateNotificationBadge();
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notifications as read:', error);
+        });
+    });
+    
+    function loadNotifications() {
+        const loading = document.getElementById('notifications-loading');
+        const list = document.getElementById('notifications-list');
+        
+        loading.style.display = 'block';
+        
+        fetch('/posts/notifications/', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            
+            if (data.notifications && data.notifications.length > 0) {
+                let html = '';
+                data.notifications.forEach(notification => {
+                    const actionButtons = !notification.is_read ? (
+                        notification.type === 'follow_request' ? `
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-primary-instagram accept-follow-btn" data-request-id="${notification.follow_request_id}">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary reject-follow-btn" data-request-id="${notification.follow_request_id}">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="btn btn-sm btn-outline-secondary mark-read-btn" data-id="${notification.id}">
+                                <i class="bi bi-check"></i>
+                            </button>
+                        `
+                    ) : '';
+                    
+                    html += `
+                        <div class="notification-item ${notification.is_read ? '' : 'unread'}" data-id="${notification.id}">
+                            <div class="d-flex align-items-start">
+                                <img src="${notification.actor_avatar}" alt="${notification.actor}" class="notification-avatar me-3">
+                                <div class="flex-grow-1">
+                                    <div class="notification-text">
+                                        <strong>${notification.actor}</strong> ${notification.verb}
+                                        ${notification.target ? `<strong>${notification.target}</strong>` : ''}
+                                    </div>
+                                    <div class="notification-time">${notification.time_ago}</div>
+                                </div>
+                                ${actionButtons}
+                            </div>
+                        </div>
+                    `;
+                });
+                list.innerHTML = html;
+                
+                // Add click handlers for mark as read buttons
+                document.querySelectorAll('.mark-read-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const notificationId = this.dataset.id;
+                        markAsRead(notificationId, this);
+                    });
+                });
+                
+                // Add click handlers for follow request buttons
+                document.querySelectorAll('.accept-follow-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const requestId = this.dataset.requestId;
+                        handleFollowRequest(requestId, 'accept', this);
+                    });
+                });
+                
+                document.querySelectorAll('.reject-follow-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const requestId = this.dataset.requestId;
+                        handleFollowRequest(requestId, 'reject', this);
+                    });
+                });
+            } else {
+                list.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-bell display-4 text-muted mb-3"></i>
+                        <h6>No notifications yet</h6>
+                        <p class="text-muted">When people interact with your posts, you'll see them here</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading notifications:', error);
+            loading.style.display = 'none';
+            list.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-exclamation-triangle display-4 text-danger mb-3"></i>
+                    <h6>Error loading notifications</h6>
+                    <p class="text-muted">Please try refreshing the page</p>
+                </div>
+            `;
+        });
+    }
+    
+    function markAsRead(notificationId, button) {
+        fetch(`/posts/notifications/${notificationId}/mark-read/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const notificationItem = button.closest('.notification-item');
+                notificationItem.classList.remove('unread');
+                button.remove();
+                updateNotificationBadge();
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notification as read:', error);
+        });
+    }
+    
+    function handleFollowRequest(requestId, action, button) {
+        const url = `/accounts/follow-requests/${requestId}/${action}/`;
+        const notificationItem = button.closest('.notification-item');
+        
+        // Show loading state
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        button.disabled = true;
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the notification item with animation
+                notificationItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                notificationItem.style.opacity = '0';
+                notificationItem.style.transform = 'translateX(20px)';
+                
+                setTimeout(() => {
+                    notificationItem.remove();
+                    updateNotificationBadge();
+                }, 300);
+            } else {
+                // Restore button on error
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error(`Error ${action}ing follow request:`, error);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        });
+    }
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Message Requests - Hello World{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 sidebar">
+            <div class="d-flex flex-column p-3">
+                <h5 class="text-white mb-4">Messages</h5>
+                
+                <!-- Navigation -->
+                <nav class="nav flex-column">
+                    <a href="{% url 'messages:inbox' %}" class="nav-link text-white">
+                        <i class="bi bi-chat-dots me-2"></i>Inbox
+                    </a>
+                    <a href="{% url 'messages:message_requests' %}" class="nav-link text-white active">
+                        <i class="bi bi-person-plus me-2"></i>Message Requests
+                        {% if message_requests %}
+                            <span class="badge bg-danger ms-auto">{{ message_requests.count }}</span>
+                        {% endif %}
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 main-content">
+            <div class="p-4">
+                <h3 class="mb-4">Message Requests</h3>
+                
+                {% if message_requests %}
+                    <div class="request-list">
+                        {% for request in message_requests %}
+                            <div class="request-item">
+                                <div class="card border-0 shadow-sm mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-start">
+                                            <img src="{{ request.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                                 alt="{{ request.sender.username }}" class="rounded-circle me-3" 
+                                                 style="width: 60px; height: 60px; object-fit: cover;">
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div>
+                                                        <h6 class="mb-1">
+                                                            <a href="{% url 'accounts:profile' request.sender.username %}" class="text-decoration-none text-dark">
+                                                                {{ request.sender.username }}
+                                                            </a>
+                                                        </h6>
+                                                        <small class="text-muted">{{ request.created_at|date:"F d, Y H:i" }}</small>
+                                                    </div>
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                </div>
+                                                <div class="message-preview p-3 bg-light rounded mb-3">
+                                                    <p class="mb-0">{{ request.content }}</p>
+                                                </div>
+                                                <div class="request-actions">
+                                                    <button class="btn btn-primary-instagram btn-sm accept-request" data-request-id="{{ request.id }}">
+                                                        <i class="bi bi-check-circle me-1"></i>Accept
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary btn-sm decline-request" data-request-id="{{ request.id }}">
+                                                        <i class="bi bi-x-circle me-1"></i>Decline
+                                                    </button>
+                                                    <button class="btn btn-link text-muted btn-sm view-profile" data-username="{{ request.sender.username }}">
+                                                        <i class="bi bi-person me-1"></i>View Profile
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-person-plus display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">No Message Requests</h5>
+                        <p class="text-muted">You don't have any pending message requests.</p>
+                        <a href="{% url 'messages:inbox' %}" class="btn btn-primary-instagram">
+                            <i class="bi bi-chat-dots me-2"></i>Go to Inbox
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.sidebar {
+    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
+    min-height: 100vh;
+}
+
+.request-item {
+    transition: transform 0.2s ease;
+}
+
+.request-item:hover {
+    transform: translateY(-2px);
+}
+
+.message-preview {
+    border-left: 4px solid var(--electric-pink);
+}
+
+.request-actions .btn {
+    margin-right: 10px;
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle accept request
+    document.querySelectorAll('.accept-request').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.dataset.requestId;
+            const requestItem = this.closest('.request-item');
+            
+            // Show loading state
+            this.classList.add('loading');
+            this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+            
+            fetch(`/messages/accept-request/${requestId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    requestItem.innerHTML = `
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-body text-center py-4">
+                                <i class="bi bi-check-circle text-success display-4 mb-3"></i>
+                                <h6 class="text-success">Request Accepted!</h6>
+                                <p class="text-muted mb-3">You can now message this person.</p>
+                                <a href="/messages/conversation/${data.conversation_id}/" class="btn btn-primary-instagram">
+                                    <i class="bi bi-chat-dots me-2"></i>Start Chatting
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Remove from pending count
+                    updateRequestCount(-1);
+                } else {
+                    alert(data.error || 'Error accepting request');
+                    // Reset button
+                    this.classList.remove('loading');
+                    this.innerHTML = '<i class="bi bi-check-circle me-1"></i>Accept';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error accepting request');
+                // Reset button
+                this.classList.remove('loading');
+                this.innerHTML = '<i class="bi bi-check-circle me-1"></i>Accept';
+            });
+        });
+    });
+    
+    // Handle decline request
+    document.querySelectorAll('.decline-request').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.dataset.requestId;
+            const requestItem = this.closest('.request-item');
+            
+            if (confirm('Are you sure you want to decline this message request?')) {
+                // Show loading state
+                this.classList.add('loading');
+                this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+                
+                fetch(`/messages/decline-request/${requestId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the request item with animation
+                        requestItem.style.transition = 'opacity 0.3s ease';
+                        requestItem.style.opacity = '0';
+                        setTimeout(() => {
+                            requestItem.remove();
+                            updateRequestCount(-1);
+                            
+                            // Show empty state if no more requests
+                            if (document.querySelectorAll('.request-item').length === 0) {
+                                location.reload();
+                            }
+                        }, 300);
+                    } else {
+                        alert(data.error || 'Error declining request');
+                        // Reset button
+                        this.classList.remove('loading');
+                        this.innerHTML = '<i class="bi bi-x-circle me-1"></i>Decline';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error declining request');
+                    // Reset button
+                    this.classList.remove('loading');
+                    this.innerHTML = '<i class="bi bi-x-circle me-1"></i>Decline';
+                });
+            }
+        });
+    });
+    
+    // Handle view profile
+    document.querySelectorAll('.view-profile').forEach(button => {
+        button.addEventListener('click', function() {
+            const username = this.dataset.username;
+            window.open(`/accounts/profile/${username}/`, '_blank');
+        });
+    });
+    
+    function updateRequestCount(change) {
+        // Update the badge count in the sidebar
+        const badges = document.querySelectorAll('.nav-link .badge');
+        badges.forEach(badge => {
+            const currentCount = parseInt(badge.textContent);
+            const newCount = currentCount + change;
+            if (newCount > 0) {
+                badge.textContent = newCount;
+            } else {
+                badge.remove();
+            }
+        });
+    }
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}
