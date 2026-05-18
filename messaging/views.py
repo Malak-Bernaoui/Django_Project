@@ -206,6 +206,29 @@ def decline_message_request(request, request_id):
     return JsonResponse({'success': True})
 
 @login_required
+def message_counts(request):
+    """Unread messages and pending invitations."""
+    user = request.user
+    conversations = Conversation.objects.filter(
+        Q(participant1=user) | Q(participant2=user),
+        is_active=True,
+    )
+    unread_messages = Message.objects.filter(
+        conversation__in=conversations,
+        is_read=False,
+    ).exclude(sender=user).count()
+    pending_requests = MessageRequest.objects.filter(
+        recipient=user,
+        status='pending',
+    ).count()
+    return JsonResponse({
+        'unread_messages': unread_messages,
+        'pending_requests': pending_requests,
+        'total': unread_messages + pending_requests,
+    })
+
+
+@login_required
 def search_users(request):
     """Search for users to message"""
     query = request.GET.get('q', '').strip()

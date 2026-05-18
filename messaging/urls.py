@@ -13,4 +13,5 @@ urlpatterns = [
     path('accept-request/<int:request_id>/', views.accept_message_request, name='accept_request'),
     path('decline-request/<int:request_id>/', views.decline_message_request, name='decline_request'),
     path('search-users/', views.search_users, name='search_users'),
+    path('api/counts/', views.message_counts, name='message_counts'),
 ]

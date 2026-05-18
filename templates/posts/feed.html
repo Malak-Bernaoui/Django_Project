@@ -95,10 +95,10 @@
                     <i class="bi {% if post|is_liked_by:user %}bi-heart-fill liked{% else %}bi-heart{% endif %}" 
                        onclick="toggleLike({{ post.id }})" id="like-icon-{{ post.id }}"></i>
                     <i class="bi bi-chat" onclick="focusComment({{ post.id }})"></i>
-                    <i class="bi bi-send"></i>
+                    <i class="bi bi-send" onclick="openShareModal({{ post.id }})" title="Share with followers"></i>
                 </div>
                 <div class="mt-2">
-                    <strong>{{ post.likes_count }}</strong> likes
+                    <strong id="likes-count-{{ post.id }}">{{ post.likes_count }}</strong> likes
                 </div>
             </div>
 
@@ -137,69 +137,6 @@
             </div>
         </div>
     {% endfor %}
-    
-    <!-- Fake Posts for Demonstration -->
-    {% if not posts %}
-        {% for i in "123456" %}
-            <div class="post-card">
-                <!-- Post Header -->
-                <div class="post-header">
-                    <div class="d-flex align-items-center">
-                        <img src="https://picsum.photos/seed/feeduser{{ i }}/100/100.jpg" alt="demo_user_{{ i }}" class="profile-avatar me-3">
-                        <div class="flex-grow-1">
-                            <a href="#" class="text-decoration-none text-dark fw-bold">
-                                demo_user_{{ i }}
-                            </a>
-                            <div class="text-muted small">{{ i|add:1 }} days ago</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Post Image -->
-                <div class="post-image-container">
-                    <img src="https://picsum.photos/seed/feedpost{{ i }}/600/600.jpg" alt="Demo post {{ i }}" class="post-image">
-                </div>
-
-                <!-- Post Actions -->
-                <div class="post-actions">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-heart" onclick="alert('Demo: Like functionality')"></i>
-                        <i class="bi bi-chat" onclick="alert('Demo: Comment functionality')"></i>
-                        <i class="bi bi-send" onclick="alert('Demo: Share functionality')"></i>
-                    </div>
-                    <div class="ms-auto">
-                        <i class="bi bi-bookmark" onclick="alert('Demo: Save functionality')"></i>
-                    </div>
-                </div>
-
-                <!-- Post Caption -->
-                <div class="post-caption">
-                    <strong>demo_user_{{ i }}</strong> This is a demo post caption for demonstration purposes. Check out this amazing photo! #demo #socialmedia #test
-                    <div class="text-muted small mt-1">{{ i|add:20 }} likes</div>
-                </div>
-
-                <!-- Comments Section -->
-                <div class="comments-section">
-                    <div class="comments-list">
-                        <div class="comment">
-                            <strong>commenter_{{ i }}</strong> Nice photo! 
-                            <small class="text-muted">{{ i|add:1 }}h ago</small>
-                        </div>
-                        <div class="comment">
-                            <strong>follower_{{ i }}</strong> Love this! 
-                            <small class="text-muted">{{ i|add:2 }}h ago</small>
-                        </div>
-                    </div>
-                    
-                    <!-- Comment Form -->
-                    <form class="comment-form" onsubmit="alert('Demo: Comment functionality'); return false;">
-                        <input type="text" name="content" placeholder="Add a comment..." class="form-control">
-                        <button type="submit" class="btn btn-primary-instagram btn-sm">Post</button>
-                    </form>
-                </div>
-            </div>
-        {% endfor %}
-    {% endif %}
 
     <!-- Pagination -->
     {% if is_paginated %}
@@ -224,8 +161,25 @@
         </nav>
     {% endif %}
 </div>
+
+<div class="modal fade" id="sharePostModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Share with followers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-2">Your followers will be notified about this post.</p>
+                <div id="share-followers-list" class="list-group mb-3" style="max-height: 200px; overflow-y: auto;"></div>
+                <button type="button" class="btn btn-primary-instagram w-100" id="confirm-share-btn">Share with all followers</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
+{% block extra_css %}
 <style>
 .story-empty {
     background: var(--background-card);
@@ -325,6 +279,7 @@
     color: var(--electric-pink-dark);
 }
 </style>
+{% endblock %}
 
 {% block extra_js %}
 <script>
@@ -357,7 +312,10 @@ function toggleLike(postId) {
         },
         body: JSON.stringify({})
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Like failed');
+        return response.json();
+    })
     .then(data => {
         if (data.is_liked) {
             likeIcon.classList.remove('bi-heart');
@@ -369,8 +327,8 @@ function toggleLike(postId) {
         
         // Update likes count
         const postCard = document.querySelector('[data-post-id="' + postId + '"]');
-        const likesCount = postCard.querySelector('.post-actions strong');
-        likesCount.textContent = data.likes_count;
+        const likesCount = document.getElementById('likes-count-' + postId);
+        if (likesCount) likesCount.textContent = data.likes_count;
     })
     .catch(error => console.error('Error:', error));
 }
@@ -422,6 +380,53 @@ document.querySelectorAll('.comment-form').forEach(form => {
         })
         .catch(error => console.error('Error:', error));
     });
+});
+
+let sharePostId = null;
+const shareModalEl = document.getElementById('sharePostModal');
+const shareModal = shareModalEl ? new bootstrap.Modal(shareModalEl) : null;
+
+function openShareModal(postId) {
+    sharePostId = postId;
+    const list = document.getElementById('share-followers-list');
+    list.innerHTML = '<p class="text-muted small p-2">Loading followers...</p>';
+    shareModal.show();
+    fetch(`/post/${postId}/share/followers/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.followers || data.followers.length === 0) {
+            list.innerHTML = '<p class="text-muted small p-2">You have no followers to share with yet.</p>';
+            return;
+        }
+        list.innerHTML = data.followers.map(f => `
+            <div class="list-group-item d-flex align-items-center">
+                <img src="${f.profile_picture || '/static/images/default-avatar.png'}" class="rounded-circle me-2" width="32" height="32" style="object-fit:cover">
+                <span>@${f.username}</span>
+            </div>
+        `).join('');
+    });
+}
+
+document.getElementById('confirm-share-btn')?.addEventListener('click', function() {
+    if (!sharePostId) return;
+    this.disabled = true;
+    fetch(`/post/${sharePostId}/share/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            shareModal.hide();
+        }
+    })
+    .finally(() => { this.disabled = false; });
 });
 </script>
 {% endblock %}

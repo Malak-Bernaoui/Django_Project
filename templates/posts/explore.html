@@ -1,18 +1,16 @@
 {% extends 'base.html' %}
-{% load post_extras %}
 
 {% block title %}Explore - Instagram Clone{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
-        <!-- Search Bar -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
                 <form method="get" action="{% url 'posts:explore' %}" class="d-flex">
                     <div class="input-group">
-                        <input type="text" name="q" class="form-control" 
-                               placeholder="Search posts..." 
+                        <input type="text" name="q" class="form-control"
+                               placeholder="Search posts..."
                                value="{{ search_query }}"
                                autocomplete="off">
                         <button class="btn btn-primary-instagram" type="submit">
@@ -23,111 +21,50 @@
             </div>
         </div>
 
-        
-        <!-- Posts Grid -->
-        {% if posts %}
-            <div class="explore-grid">
-                {% for post in posts %}
-                    <div class="explore-item">
-                        <a href="{% url 'posts:post_detail' post.id %}" class="text-decoration-none">
-                            <div class="position-relative">
-                                <img src="{{ post.image.url }}" alt="Post image" 
-                                     class="explore-image">
-                                <div class="explore-overlay">
-                                    <div class="explore-stats">
-                                        <div class="stat-item">
-                                            <i class="bi bi-heart"></i>
-                                            <span>{{ post.likes_count }}</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <i class="bi bi-chat"></i>
-                                            <span>{{ post.comments_count }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                {% empty %}
-                    <!-- Fake Posts for Demonstration -->
-                    {% for i in "123456789101112131415161718192021222324" %}
-                        <div class="explore-item">
-                            <div class="position-relative">
-                                <img src="https://picsum.photos/seed/explore{{ i }}/400/400.jpg" 
-                                     alt="Sample post {{ i }}" class="explore-image">
-                                <div class="explore-overlay">
-                                    <div class="explore-stats">
-                                        <div class="stat-item">
-                                            <i class="bi bi-heart"></i>
-                                            <span>{{ i|add:10 }}</span>
-                                        </div>
-                                        <div class="stat-item">
-                                            <i class="bi bi-chat"></i>
-                                            <span>{{ i|add:2 }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% endfor %}
-            </div>
-        {% else %}
-            <!-- Fake Posts for Demonstration -->
-            <div class="explore-grid">
-                {% for i in "123456789101112131415161718192021222324" %}
-                    <div class="explore-item">
-                        <div class="position-relative">
-                            <img src="https://picsum.photos/seed/explore{{ i }}/400/400.jpg" 
-                                 alt="Sample post {{ i }}" class="explore-image">
+        <div class="explore-grid">
+            {% for item in explore_items %}
+                <div class="explore-item">
+                    {% if item.detail_url %}
+                        <a href="{{ item.detail_url }}" class="explore-link text-decoration-none">
+                    {% else %}
+                        <div class="explore-link">
+                    {% endif %}
+                        <div class="explore-image-wrap">
+                            <img src="{{ item.image_url }}" alt="Explore" class="explore-image">
                             <div class="explore-overlay">
                                 <div class="explore-stats">
-                                    <div class="stat-item">
-                                        <i class="bi bi-heart"></i>
-                                        <span>{{ i|add:10 }}</span>
-                                    </div>
-                                    <div class="stat-item">
-                                        <i class="bi bi-chat"></i>
-                                        <span>{{ i|add:2 }}</span>
-                                    </div>
+                                    <span class="stat-item"><i class="bi bi-heart"></i> {{ item.likes_count }}</span>
+                                    <span class="stat-item"><i class="bi bi-chat"></i> {{ item.comments_count }}</span>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+                    {% if item.detail_url %}
+                        </a>
+                    {% else %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p class="text-center text-muted py-5 col-12">No posts to explore yet.</p>
+            {% endfor %}
+        </div>
 
-            <!-- Pagination -->
-            {% if is_paginated %}
-                <nav aria-label="Page navigation" class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
-                            </li>
-                        {% endif %}
-                        
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                                <li class="page-item active">
-                                    <span class="page-link">{{ num }}</span>
-                                </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}page={{ num }}">{{ num }}</a>
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            {% endif %}
+        {% if is_paginated %}
+            <nav class="mt-4" aria-label="Explore pagination">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if search_query %}q={{ search_query }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
     </div>
 </div>
 
@@ -135,81 +72,22 @@
 .explore-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
-    background: var(--background-light);
-    border: 1px solid var(--border-color);
+    gap: 4px;
     border-radius: 8px;
     overflow: hidden;
 }
-
-.explore-item {
-    position: relative;
-    aspect-ratio: 1;
-    overflow: hidden;
-}
-
-.explore-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
-
+.explore-item { aspect-ratio: 1; overflow: hidden; }
+.explore-link, .explore-image-wrap { display: block; width: 100%; height: 100%; position: relative; }
+.explore-image { width: 100%; height: 100%; object-fit: cover; display: block; }
 .explore-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
 }
-
-.explore-item:hover .explore-overlay {
-    opacity: 1;
-}
-
-.explore-item:hover .explore-image {
-    transform: scale(1.05);
-}
-
-.explore-stats {
-    display: flex;
-    gap: 20px;
-    color: white;
-    font-weight: 600;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.stat-item i {
-    font-size: 1.1rem;
-}
-
-.stat-item span {
-    font-size: 0.9rem;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .explore-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 480px) {
-    .explore-grid {
-        grid-template-columns: 1fr;
-    }
-}
+.explore-item:hover .explore-overlay { opacity: 1; }
+.explore-stats { display: flex; gap: 16px; color: #fff; font-weight: 600; }
+.stat-item { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 768px) { .explore-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
-
 {% endblock %}

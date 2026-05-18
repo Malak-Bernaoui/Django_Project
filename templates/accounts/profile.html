@@ -27,20 +27,22 @@
                         <!-- Profile Actions -->
                         <div class="d-flex flex-column gap-2">
                             {% if profile_user != user %}
-                                {% if is_following %}
-                                    <a href="{% url 'accounts:unfollow' profile_user.username %}" 
-                                       class="btn btn-outline-secondary btn-sm">
-                                        <i class="bi bi-person-dash me-1"></i>Unfollow
-                                    </a>
-                                {% elif has_pending_request %}
-                                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                                {% if has_pending_request %}
+                                    <button class="btn btn-outline-secondary btn-sm" disabled id="follow-btn">
                                         <i class="bi bi-clock me-1"></i>Request Sent
                                     </button>
                                 {% else %}
-                                    <a href="{% url 'accounts:follow' profile_user.username %}" 
-                                       class="btn btn-primary-instagram btn-sm" id="follow-btn">
-                                        <i class="bi bi-person-plus me-1"></i>Follow
-                                    </a>
+                                    <button type="button"
+                                            class="btn btn-sm {% if is_following %}btn-following{% else %}btn-primary-instagram{% endif %}"
+                                            id="follow-btn"
+                                            data-username="{{ profile_user.username }}"
+                                            data-following="{% if is_following %}true{% else %}false{% endif %}">
+                                        {% if is_following %}
+                                            <i class="bi bi-person-dash me-1"></i>Unfollow
+                                        {% else %}
+                                            <i class="bi bi-person-plus me-1"></i>Follow
+                                        {% endif %}
+                                    </button>
                                 {% endif %}
                                 <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#messageModal" id="message-btn">
                                     <i class="bi bi-envelope me-1"></i>Message
@@ -184,34 +186,10 @@
                                 </div>
                             </div>
                         {% empty %}
-                            <!-- Fake Posts for Demonstration -->
-                            {% for i in "123456789" %}
-                                <div class="col-md-4 col-lg-3">
-                                    <div class="position-relative">
-                                        <a href="#" class="text-decoration-none">
-                                            <img src="https://picsum.photos/seed/profile{{ profile_user.username }}{{ i }}/300/300.jpg" 
-                                                 alt="Demo post {{ i }}" 
-                                                 class="img-fluid rounded"
-                                                 style="width: 100%; height: 250px; object-fit: cover;">
-                                            
-                                            <!-- Post Overlay -->
-                                            <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center post-overlay"
-                                                 style="background: rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s;">
-                                                <div class="text-white text-center">
-                                                    <div class="d-flex justify-content-center align-items-center mb-2">
-                                                        <i class="bi bi-heart me-2"></i>
-                                                        <span>{{ i|add:15 }}</span>
-                                                    </div>
-                                                    <div class="d-flex justify-content-center align-items-center">
-                                                        <i class="bi bi-chat me-2"></i>
-                                                        <span>{{ i|add:3 }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                            {% endfor %}
+                            <div class="col-12 text-center py-4 text-muted">
+                                <i class="bi bi-camera display-6 d-block mb-2"></i>
+                                <p class="mb-0">No posts yet.</p>
+                            </div>
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -248,6 +226,18 @@
     background-color: var(--medium-gray);
     border-color: var(--border-light);
     color: var(--text-primary);
+}
+
+.btn-following {
+    background-color: #5a6268;
+    border-color: #5a6268;
+    color: #fff;
+}
+
+.btn-following:hover {
+    background-color: #495057;
+    border-color: #495057;
+    color: #fff;
 }
 
 .alert-info {
@@ -303,20 +293,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Handle follow button for AJAX requests
     const followBtn = document.getElementById('follow-btn');
-    if (followBtn) {
-        followBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            const username = '{{ profile_user.username }}';
-            const originalText = this.innerHTML;
-            
-            // Show loading state
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading...';
+    if (followBtn && !followBtn.disabled) {
+        followBtn.addEventListener('click', function() {
+            const username = this.dataset.username;
+            const isFollowing = this.dataset.following === 'true';
+            const url = isFollowing
+                ? `/accounts/unfollow/${username}/`
+                : `/accounts/follow/${username}/`;
+            const originalHtml = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             this.disabled = true;
-            
-            fetch(`/accounts/follow/${username}/`, {
+
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -325,29 +314,34 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    if (data.is_private && !data.followed) {
-                        // Private account - request sent
-                        this.innerHTML = '<i class="bi bi-clock me-1"></i>Request Sent';
-                        this.className = 'btn btn-outline-secondary btn-sm';
-                        this.disabled = true;
-                    } else if (data.followed) {
-                        // Public account - followed successfully
-                        this.innerHTML = '<i class="bi bi-person-dash me-1"></i>Unfollow';
-                        this.href = `/accounts/unfollow/${username}/`;
-                        this.className = 'btn btn-outline-secondary btn-sm';
-                        this.disabled = false;
-                    }
-                    
-                    // Show success message
+                if (!data.success) return;
+                if (isFollowing) {
+                    this.dataset.following = 'false';
+                    this.className = 'btn btn-sm btn-primary-instagram';
+                    this.innerHTML = '<i class="bi bi-person-plus me-1"></i>Follow';
+                    showNotification(data.message || 'Unfollowed', 'success');
+                } else if (data.is_private && !data.followed) {
+                    this.innerHTML = '<i class="bi bi-clock me-1"></i>Request Sent';
+                    this.className = 'btn btn-outline-secondary btn-sm';
                     showNotification(data.message, 'success');
+                } else if (data.followed) {
+                    this.dataset.following = 'true';
+                    this.className = 'btn btn-sm btn-following';
+                    this.innerHTML = '<i class="bi bi-person-dash me-1"></i>Unfollow';
+                    showNotification(data.message, 'success');
+                } else {
+                    this.innerHTML = originalHtml;
                 }
             })
-            .catch(error => {
-                console.error('Error following user:', error);
-                this.innerHTML = originalText;
-                this.disabled = false;
-                showNotification('Error following user', 'error');
+            .catch(() => {
+                this.innerHTML = originalHtml;
+                showNotification('Could not update follow status', 'danger');
+            })
+            .finally(() => {
+                if (this.innerHTML.includes('spinner-border')) {
+                    this.innerHTML = originalHtml;
+                }
+                this.disabled = this.innerHTML.includes('Request Sent');
             });
         });
     }
@@ -439,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sendBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Sending...';
         
         // Check if users can message directly
-        fetch(`/messaging/start/{{ profile_user.username }}/`, {
+        fetch(`/messages/start/{{ profile_user.username }}/`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -448,11 +442,24 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 if (data.can_message) {
-                    // Can message directly - create conversation
-                    window.location.href = `/messaging/conversation/${data.conversation_id}/`;
+                    fetch(`/messages/send/${data.conversation_id}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: `content=${encodeURIComponent(content)}`
+                    })
+                    .then(() => {
+                        window.location.href = `/messages/conversation/${data.conversation_id}/`;
+                    })
+                    .catch(() => {
+                        window.location.href = `/messages/conversation/${data.conversation_id}/`;
+                    });
                 } else {
                     // Need to send message request
-                    fetch(`/messaging/send-request/{{ profile_user.username }}/`, {
+                    fetch(`/messages/send-request/{{ profile_user.username }}/`, {
                         method: 'POST',
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',

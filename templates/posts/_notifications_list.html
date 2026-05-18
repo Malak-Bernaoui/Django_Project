@@ -1,0 +1,38 @@
+{% if notifications %}
+    {% for notification in notifications %}
+        <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+            <div class="d-flex align-items-start gap-3">
+                <a href="{{ notification.actor_profile_url }}">
+                    <img src="{{ notification.actor_avatar }}" alt="{{ notification.actor }}" class="notification-avatar">
+                </a>
+                <div class="flex-grow-1">
+                    <div>
+                        <a href="{{ notification.actor_profile_url }}" class="fw-bold text-decoration-none text-dark">{{ notification.actor }}</a>
+                        {{ notification.verb }}
+                        {% if notification.target %}<strong>{{ notification.target }}</strong>{% endif %}
+                        {% if notification.post_url %}
+                            <a href="{{ notification.post_url }}" class="small ms-1">View post</a>
+                        {% endif %}
+                    </div>
+                    <div class="notification-time">{{ notification.time_ago }}</div>
+                </div>
+                {% if not notification.is_read %}
+                    <div class="d-flex gap-1">
+                        {% if notification.type == 'follow_request' %}
+                            <button type="button" class="btn btn-sm btn-primary-instagram accept-follow-btn" data-request-id="{{ notification.follow_request_id }}">Accept</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary reject-follow-btn" data-request-id="{{ notification.follow_request_id }}">Decline</button>
+                        {% else %}
+                            <button type="button" class="btn btn-sm btn-outline-secondary mark-read-btn" data-id="{{ notification.id }}">Mark read</button>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+{% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-bell display-4 mb-3 d-block"></i>
+        <h6>No notifications yet</h6>
+        <p class="small mb-0">Likes, comments, follow requests, and shares will show up here.</p>
+    </div>
+{% endif %}

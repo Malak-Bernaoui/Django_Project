@@ -28,10 +28,10 @@
                                     {% endif %}
                                 </div>
                                 {% if follow.follower != request.user %}
-                                    {% if follow.follower.id in request.user.following_ids %}
-                                        <a href="{% url 'accounts:unfollow' follow.follower.username %}" class="btn btn-sm btn-outline-secondary">Unfollow</a>
+                                    {% if follow.follower.id in following_ids %}
+                                        <button type="button" class="btn btn-sm btn-following" onclick="toggleFollowList(this, '{{ follow.follower.username }}', true)">Unfollow</button>
                                     {% else %}
-                                        <a href="{% url 'accounts:follow' follow.follower.username %}" class="btn btn-sm btn-primary-instagram">Follow</a>
+                                        <button type="button" class="btn btn-sm btn-primary-instagram" onclick="toggleFollowList(this, '{{ follow.follower.username }}', false)">Follow</button>
                                     {% endif %}
                                 {% endif %}
                             </div>
@@ -46,4 +46,31 @@
         </div>
     </div>
 </div>
+<style>.btn-following { background-color: #5a6268; border-color: #5a6268; color: #fff; }</style>
+<script>
+function getCookie(name) {
+    let v = null;
+    if (document.cookie) document.cookie.split(';').forEach(c => {
+        c = c.trim();
+        if (c.startsWith(name + '=')) v = decodeURIComponent(c.substring(name.length + 1));
+    });
+    return v;
+}
+function toggleFollowList(btn, username, isFollowing) {
+    const url = isFollowing ? `/accounts/unfollow/${username}/` : `/accounts/follow/${username}/`;
+    fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCookie('csrftoken') } })
+    .then(r => r.json()).then(data => {
+        if (!data.success) return;
+        if (isFollowing) {
+            btn.className = 'btn btn-sm btn-primary-instagram';
+            btn.textContent = 'Follow';
+            btn.onclick = () => toggleFollowList(btn, username, false);
+        } else if (data.followed) {
+            btn.className = 'btn btn-sm btn-following';
+            btn.textContent = 'Unfollow';
+            btn.onclick = () => toggleFollowList(btn, username, true);
+        } else { btn.textContent = 'Requested'; btn.disabled = true; }
+    });
+}
+</script>
 {% endblock %}

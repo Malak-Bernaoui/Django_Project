@@ -4,6 +4,15 @@ from django.utils import timezone
 
 User = get_user_model()
 
+
+def _users_follow_each_other(user1, user2):
+    """Return True when both users follow each other."""
+    from accounts.models import Follow
+    return (
+        Follow.objects.filter(follower=user1, following=user2).exists()
+        and Follow.objects.filter(follower=user2, following=user1).exists()
+    )
+
 class Conversation(models.Model):
     """Conversation between two users"""
     participant1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations1')
@@ -119,8 +128,10 @@ class MessageRequestStatus(models.Model):
     @classmethod
     def can_message(cls, user1, user2):
         """Check if user1 can message user2 directly"""
+        if user1 == user2:
+            return False
         # Users can message each other if they follow each other
-        if (user1 in user2.followers.all() and user2 in user1.followers.all()):
+        if _users_follow_each_other(user1, user2):
             return True
         
         # Check if permission has been granted

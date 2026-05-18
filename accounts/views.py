@@ -3,7 +3,9 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib import messages
+from django.http import JsonResponse
 from django.db.models import Count
+from django.views.decorators.http import require_POST
 from django.views.generic import DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import User, Follow, FollowRequest, FollowRequestNotification
@@ -108,6 +110,7 @@ def edit_profile(request, username):
 
 
 @login_required
+@require_POST
 def follow_user(request, username):
     user_to_follow = get_object_or_404(User, username=username)
     if user_to_follow != request.user:
@@ -162,6 +165,12 @@ def follow_user(request, username):
                     request.user.following_count += 1
                     user_to_follow.save()
                     request.user.save()
+                    from posts.models import Notification
+                    Notification.objects.create(
+                        recipient=user_to_follow,
+                        sender=request.user,
+                        notification_type='follow',
+                    )
                     message = "You are now following this user!"
                     followed = True
                 else:
@@ -185,18 +194,29 @@ def follow_user(request, username):
 
 
 @login_required
+@require_POST
 def unfollow_user(request, username):
     user_to_unfollow = get_object_or_404(User, username=username)
     follow = Follow.objects.filter(
         follower=request.user,
         following=user_to_unfollow
     ).first()
+    unfollowed = False
     if follow:
         follow.delete()
-        user_to_unfollow.followers_count -= 1
-        request.user.following_count -= 1
+        user_to_unfollow.followers_count = max(0, user_to_unfollow.followers_count - 1)
+        request.user.following_count = max(0, request.user.following_count - 1)
         user_to_unfollow.save()
         request.user.save()
+        unfollowed = True
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'unfollowed': unfollowed,
+            'message': 'You unfollowed this user.' if unfollowed else 'You were not following this user.',
+        })
+
     return redirect('accounts:profile', username=username)
 
 

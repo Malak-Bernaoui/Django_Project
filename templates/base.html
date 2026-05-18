@@ -512,8 +512,8 @@
                     <span class="message-badge" id="inbox-badge" style="display: none;">0</span>
                 </a>
                 <a href="{% url 'messaging:message_requests' %}" class="message-link">
-                    <i class="bi bi-person-plus"></i>
-                    <span>Requests</span>
+                    <i class="bi bi-envelope-open"></i>
+                    <span>Invitations</span>
                     <span class="message-badge" id="requests-badge" style="display: none;">0</span>
                 </a>
             </div>
@@ -538,6 +538,9 @@
 
     <!-- Main Content -->
     <main class="main-content">
+        {% if user.is_authenticated %}
+        <div id="csrf-holder" class="d-none">{% csrf_token %}</div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
@@ -550,7 +553,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Function to update notification badge
         function updateNotificationBadge() {
-            fetch('/posts/api/notifications/unread-count/', {
+            fetch('/api/notifications/unread-count/', {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -608,7 +611,7 @@
                                     <div class="suggestion-bio">${user.bio || 'No bio available'}</div>
                                 </div>
                             </div>
-                            <button class="follow-btn" onclick="followUser('${user.username}')">
+                            <button type="button" class="follow-btn" onclick="followUser(this, '${user.username}')">
                                 Follow
                             </button>
                         </div>
@@ -650,7 +653,7 @@
                                     <div class="suggestion-bio">${user.bio || 'Suggested for you'}</div>
                                 </div>
                             </div>
-                            <button class="follow-btn" onclick="followUser('${user.username}')">
+                            <button type="button" class="follow-btn" onclick="followUser(this, '${user.username}')">
                                 Follow
                             </button>
                         </div>
@@ -667,8 +670,12 @@
         });
     }
 
-    function followUser(username) {
-        fetch(`/accounts/follow/${username}/`, {
+    function followUser(button, username) {
+        const isFollowing = button.classList.contains('following');
+        const url = isFollowing
+            ? `/accounts/unfollow/${username}/`
+            : `/accounts/follow/${username}/`;
+        fetch(url, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -677,10 +684,16 @@
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                // Reload suggestions to update the list
-                loadSuggestions();
-                loadPopularAccounts();
+            if (!data.success) return;
+            if (isFollowing || data.unfollowed) {
+                button.textContent = 'Follow';
+                button.classList.remove('following');
+            } else if (data.followed) {
+                button.textContent = 'Unfollow';
+                button.classList.add('following');
+            } else if (data.is_private) {
+                button.textContent = 'Requested';
+                button.disabled = true;
             }
         })
         .catch(error => {
@@ -688,21 +701,23 @@
         });
     }
 
-    // Helper function to get CSRF token
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            document.cookie.split(';').forEach(cookie => {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
                 }
-            }
+            });
+        }
+        if (!cookieValue) {
+            const input = document.querySelector('#csrf-holder input[name=csrfmiddlewaretoken]');
+            if (input) cookieValue = input.value;
         }
         return cookieValue;
     }
+    window.getCookie = getCookie;
     </script>
     {% endif %}
     
@@ -823,76 +838,49 @@ function handleLogout(event) {
     }
 }
 
-// Update message notification badges
 function updateMessageBadges() {
-    // Fetch message counts
-    fetch('/messaging/search-users/', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+    fetch('/messages/api/counts/', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
-        // This is a workaround - we'll use the search endpoint to check if user is authenticated
-        if (data.users !== undefined) {
-            // User is authenticated, fetch message counts
-            fetchMessageCounts();
+        const inboxBadge = document.getElementById('inbox-badge');
+        const requestsBadge = document.getElementById('requests-badge');
+        const sidebarBadge = document.getElementById('sidebar-message-badge');
+
+        if (inboxBadge) {
+            if (data.unread_messages > 0) {
+                inboxBadge.textContent = data.unread_messages;
+                inboxBadge.style.display = 'flex';
+            } else {
+                inboxBadge.style.display = 'none';
+            }
+        }
+        if (requestsBadge) {
+            if (data.pending_requests > 0) {
+                requestsBadge.textContent = data.pending_requests;
+                requestsBadge.style.display = 'flex';
+            } else {
+                requestsBadge.style.display = 'none';
+            }
+        }
+        if (sidebarBadge) {
+            if (data.total > 0) {
+                sidebarBadge.textContent = data.total;
+                sidebarBadge.style.display = 'block';
+            } else {
+                sidebarBadge.style.display = 'none';
+            }
         }
     })
-    .catch(error => {
-        console.log('User not authenticated or error checking messages');
-    });
+    .catch(error => console.log('Error loading message counts:', error));
 }
 
-function fetchMessageCounts() {
-    // Fetch unread messages count
-    fetch('/messaging/search-users/?q=check_messages', {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .catch(error => {
-        // For now, we'll simulate message counts
-        // In a real implementation, you'd create endpoints to get actual counts
-        simulateMessageCounts();
-    });
-}
-
-function simulateMessageCounts() {
-    // Simulate message counts for demonstration
-    const inboxBadge = document.getElementById('inbox-badge');
-    const requestsBadge = document.getElementById('requests-badge');
-    const sidebarBadge = document.getElementById('sidebar-message-badge');
-    
-    // Simulate some unread messages
-    const unreadCount = Math.floor(Math.random() * 5);
-    const requestCount = Math.floor(Math.random() * 3);
-    const totalCount = unreadCount + requestCount;
-    
-    if (inboxBadge && unreadCount > 0) {
-        inboxBadge.textContent = unreadCount;
-        inboxBadge.style.display = 'flex';
-    }
-    
-    if (requestsBadge && requestCount > 0) {
-        requestsBadge.textContent = requestCount;
-        requestsBadge.style.display = 'flex';
-    }
-    
-    if (sidebarBadge && totalCount > 0) {
-        sidebarBadge.textContent = totalCount;
-        sidebarBadge.style.display = 'block';
-    }
-}
-
-// Initialize message badges on page load
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.querySelector('.messages-nav')) {
-        updateMessageBadges();
-        
-        // Update badges every 30 seconds
-        setInterval(updateMessageBadges, 30000);
-    }
+    {% if user.is_authenticated %}
+    updateMessageBadges();
+    setInterval(updateMessageBadges, 30000);
+    {% endif %}
 });
 
 </script>

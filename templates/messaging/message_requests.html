@@ -17,7 +17,7 @@
                         <i class="bi bi-chat-dots me-2"></i>Inbox
                     </a>
                     <a href="{% url 'messaging:message_requests' %}" class="nav-link text-white active">
-                        <i class="bi bi-person-plus me-2"></i>Message Requests
+                        <i class="bi bi-envelope-open me-2"></i>Invitations
                         {% if message_requests %}
                             <span class="badge bg-danger ms-auto">{{ message_requests.count }}</span>
                         {% endif %}
@@ -29,41 +29,41 @@
         <!-- Main Content -->
         <div class="col-md-9 col-lg-10 main-content">
             <div class="p-4">
-                <h3 class="mb-4">Message Requests</h3>
+                <h3 class="mb-4">Message Invitations</h3>
                 
                 {% if message_requests %}
                     <div class="request-list">
-                        {% for request in message_requests %}
+                        {% for msg_request in message_requests %}
                             <div class="request-item">
                                 <div class="card border-0 shadow-sm mb-3">
                                     <div class="card-body">
                                         <div class="d-flex align-items-start">
-                                            <img src="{{ request.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
-                                                 alt="{{ request.sender.username }}" class="rounded-circle me-3" 
+                                            <img src="{{ msg_request.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
+                                                 alt="{{ msg_request.sender.username }}" class="rounded-circle me-3" 
                                                  style="width: 60px; height: 60px; object-fit: cover;">
                                             <div class="flex-grow-1">
                                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                                     <div>
                                                         <h6 class="mb-1">
-                                                            <a href="{% url 'accounts:profile' request.sender.username %}" class="text-decoration-none text-dark">
-                                                                {{ request.sender.username }}
+                                                            <a href="{% url 'accounts:profile' msg_request.sender.username %}" class="text-decoration-none text-dark">
+                                                                {{ msg_request.sender.username }}
                                                             </a>
                                                         </h6>
-                                                        <small class="text-muted">{{ request.created_at|date:"F d, Y H:i" }}</small>
+                                                        <small class="text-muted">{{ msg_request.created_at|date:"F d, Y H:i" }}</small>
                                                     </div>
                                                     <span class="badge bg-warning text-dark">Pending</span>
                                                 </div>
                                                 <div class="message-preview p-3 bg-light rounded mb-3">
-                                                    <p class="mb-0">{{ request.content }}</p>
+                                                    <p class="mb-0">{{ msg_request.content }}</p>
                                                 </div>
                                                 <div class="request-actions">
-                                                    <button class="btn btn-primary-instagram btn-sm accept-request" data-request-id="{{ request.id }}">
+                                                    <button class="btn btn-primary-instagram btn-sm accept-request" data-request-id="{{ msg_request.id }}">
                                                         <i class="bi bi-check-circle me-1"></i>Accept
                                                     </button>
-                                                    <button class="btn btn-outline-secondary btn-sm decline-request" data-request-id="{{ request.id }}">
+                                                    <button class="btn btn-outline-secondary btn-sm decline-request" data-request-id="{{ msg_request.id }}">
                                                         <i class="bi bi-x-circle me-1"></i>Decline
                                                     </button>
-                                                    <button class="btn btn-link text-muted btn-sm view-profile" data-username="{{ request.sender.username }}">
+                                                    <button class="btn btn-link text-muted btn-sm view-profile" data-username="{{ msg_request.sender.username }}">
                                                         <i class="bi bi-person me-1"></i>View Profile
                                                     </button>
                                                 </div>
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('loading');
             this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
             
-            fetch(`/messaging/accept-request/${requestId}/`, {
+            fetch(`/messages/accept-request/${requestId}/`, {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <i class="bi bi-check-circle text-success display-4 mb-3"></i>
                                 <h6 class="text-success">Request Accepted!</h6>
                                 <p class="text-muted mb-3">You can now message this person.</p>
-                                <a href="/messaging/conversation/${data.conversation_id}/" class="btn btn-primary-instagram">
+                                <a href="/messages/conversation/${data.conversation_id}/" class="btn btn-primary-instagram">
                                     <i class="bi bi-chat-dots me-2"></i>Start Chatting
                                 </a>
                             </div>
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.add('loading');
                 this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
                 
-                fetch(`/messaging/decline-request/${requestId}/`, {
+                fetch(`/messages/decline-request/${requestId}/`, {
                     method: 'POST',
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',

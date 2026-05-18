@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ conversation.get_other_participant.user.username }} - Messages{% endblock %}
+{% block title %}{{ conversation.get_other_participant.username }} - Messages{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -31,7 +31,7 @@
                     <a href="{% url 'messaging:inbox' %}" class="btn btn-link text-dark me-3">
                         <i class="bi bi-arrow-left"></i>
                     </a>
-                    {% with other_user=conversation.get_other_participant.user %}
+                    {% with other_user=conversation.get_other_participant %}
                         <img src="{{ other_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
                              alt="{{ other_user.username }}" class="rounded-circle me-3" 
                              style="width: 40px; height: 40px; object-fit: cover;">
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
         messageInput.value = '';
         
         // Send message via AJAX
-        fetch(`/messaging/send/{{ conversation.id }}/`, {
+        fetch(`/messages/send/{{ conversation.id }}/`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 30000);
     
     function checkForNewMessages() {
-        fetch(`/messaging/conversation/{{ conversation.id }}/`, {
+        fetch(`/messages/conversation/{{ conversation.id }}/`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }

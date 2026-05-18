@@ -25,7 +25,7 @@
                         {% endif %}
                     </a>
                     <a href="{% url 'messaging:message_requests' %}" class="nav-link text-white">
-                        <i class="bi bi-person-plus me-2"></i>Message Requests
+                        <i class="bi bi-envelope-open me-2"></i>Invitations
                         {% if message_requests %}
                             <span class="badge bg-danger ms-auto">{{ message_requests.count }}</span>
                         {% endif %}
@@ -45,7 +45,7 @@
                             <div class="conversation-item">
                                 <a href="{% url 'messaging:conversation' conversation.id %}" class="text-decoration-none">
                                     <div class="d-flex align-items-center p-3 border-bottom hover-bg">
-                                        {% with other_user=conversation.get_other_participant.user %}
+                                        {% with other_user=conversation.get_other_participant %}
                                             <img src="{{ other_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
                                                  alt="{{ other_user.username }}" class="rounded-circle me-3" 
                                                  style="width: 50px; height: 50px; object-fit: cover;">
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         searchTimeout = setTimeout(function() {
-            fetch(`/messaging/search-users/?q=${encodeURIComponent(query)}`, {
+            fetch(`/messages/search-users/?q=${encodeURIComponent(query)}`, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedUser.canMessage) {
             // Start conversation directly
-            fetch(`/messaging/start/${selectedUser.username}/`, {
+            fetch(`/messages/start/${selectedUser.username}/`, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
@@ -266,12 +266,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     // Redirect to conversation
-                    window.location.href = `/messaging/conversation/${data.conversation_id}/`;
+                    window.location.href = `/messages/conversation/${data.conversation_id}/`;
                 }
             });
         } else {
             // Send message request
-            fetch(`/messaging/send-request/${selectedUser.username}/`, {
+            fetch(`/messages/send-request/${selectedUser.username}/`, {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',

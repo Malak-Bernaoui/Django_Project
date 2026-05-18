@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView, DetailView, CreateView, DeleteView
+from django.views.generic import ListView, DetailView, CreateView, DeleteView, TemplateView
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Q, Count
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 from .models import Post, Like, Comment, Story, StoryView, StoryArchive, Notification
 from .forms import PostForm, CommentForm, StoryForm
@@ -129,6 +130,7 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 
 
 @login_required
+@require_POST
 def like_post(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     like, created = Like.objects.get_or_create(user=request.user, post=post)
@@ -137,9 +139,16 @@ def like_post(request, post_id):
         post.likes_count += 1
         post.save()
         is_liked = True
+        if post.author_id != request.user.id:
+            Notification.objects.create(
+                recipient=post.author,
+                sender=request.user,
+                notification_type='like',
+                post=post,
+            )
     else:
         like.delete()
-        post.likes_count -= 1
+        post.likes_count = max(0, post.likes_count - 1)
         post.save()
         is_liked = False
     
@@ -165,6 +174,14 @@ def add_comment(request, post_id):
             comment.save()
             post.comments_count += 1
             post.save()
+            if post.author_id != request.user.id:
+                Notification.objects.create(
+                    recipient=post.author,
+                    sender=request.user,
+                    notification_type='comment',
+                    post=post,
+                    comment=comment,
+                )
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -212,14 +229,40 @@ class ExploreView(LoginRequiredMixin, ListView):
                 (Q(author__is_private=False) | Q(author_id__in=following_users))
             ).select_related('author').prefetch_related('likes', 'comments__author').order_by('-created_at')
         else:
-            # For explore, only show posts from public users or followed users
+            # For explore, only show posts from public users or followed users (not own posts)
             return Post.objects.filter(
                 Q(author__is_private=False) | Q(author_id__in=following_users)
+            ).exclude(
+                author=self.request.user
             ).select_related('author').prefetch_related('likes', 'comments__author').order_by('?')[:100]
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['search_query'] = self.request.GET.get('q', '')
+        page_posts = context.get('object_list', [])
+        explore_items = []
+        for post in page_posts:
+            explore_items.append({
+                'type': 'post',
+                'id': post.id,
+                'image_url': post.image.url,
+                'likes_count': post.likes_count,
+                'comments_count': post.comments_count,
+                'detail_url': reverse('posts:post_detail', args=[post.id]),
+            })
+        # Add placeholder images alongside database posts (uniform grid sizing in template)
+        filler_start = len(explore_items)
+        filler_count = max(12, 24 - len(explore_items))
+        for i in range(filler_count):
+            seed = f'explore{self.request.user.id}{filler_start + i}'
+            explore_items.append({
+                'type': 'placeholder',
+                'image_url': f'https://picsum.photos/seed/{seed}/400/400',
+                'likes_count': (i % 50) + 10,
+                'comments_count': (i % 20) + 1,
+                'detail_url': None,
+            })
+        context['explore_items'] = explore_items
         return context
 
 
@@ -244,7 +287,7 @@ class UserPostsView(LoginRequiredMixin, ListView):
 
 @login_required
 def search(request):
-    query = request.GET.get('q', '')
+    query = request.GET.get('q', '').strip()
     users = []
     
     if query:
@@ -257,105 +300,182 @@ def search(request):
             Q(first_name__icontains=query) | 
             Q(last_name__icontains=query)
         ).exclude(id=request.user.id)[:10]
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        following_ids = set(
+            request.user.following.values_list('following_id', flat=True)
+        )
+        users_data = []
+        for user in users:
+            users_data.append({
+                'username': user.username,
+                'bio': user.bio or '',
+                'profile_picture': user.profile_picture.url if user.profile_picture else None,
+                'is_private': user.is_private,
+                'followers_count': user.followers_count,
+                'profile_url': reverse('accounts:profile', args=[user.username]),
+                'is_following': user.id in following_ids,
+            })
+        return JsonResponse({'users': users_data, 'query': query})
     
     return render(request, 'posts/search.html', {'users': users, 'query': query})
 
 
-class NotificationView(LoginRequiredMixin, ListView):
-    model = None  # Will be defined when notifications model is created
-    template_name = 'posts/notifications.html'
-    context_object_name = 'notifications'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        # Get regular notifications
-        notifications = Notification.objects.filter(
-            recipient=self.request.user
-        ).select_related('sender', 'post', 'comment').order_by('-created_at')
-        
-        # Get follow request notifications
-        follow_requests = FollowRequestNotification.objects.filter(
-            user=self.request.user
-        ).select_related('follow_request__from_user').order_by('-created_at')
-        
-        # Combine both types of notifications
-        combined_notifications = []
-        
-        # Add regular notifications
-        for notification in notifications:
-            combined_notifications.append({
-                'id': f"notif_{notification.id}",
-                'type': 'notification',
-                'actor': notification.sender.username,
-                'actor_avatar': notification.sender.profile_picture.url if notification.sender.profile_picture else '/static/images/default-avatar.png',
-                'verb': self.get_notification_verb(notification),
-                'target': self.get_notification_target(notification),
-                'time_ago': self.get_time_ago(notification.created_at),
-                'is_read': notification.is_read,
-                'notification_obj': notification
-            })
-        
-        # Add follow request notifications
-        for follow_req_notification in follow_requests:
-            combined_notifications.append({
-                'id': f"follow_req_{follow_req_notification.id}",
-                'type': 'follow_request',
-                'actor': follow_req_notification.follow_request.from_user.username,
-                'actor_avatar': follow_req_notification.follow_request.from_user.profile_picture.url if follow_req_notification.follow_request.from_user.profile_picture else '/static/images/default-avatar.png',
-                'verb': 'requested to follow you',
-                'target': '',
-                'time_ago': self.get_time_ago(follow_req_notification.created_at),
-                'is_read': follow_req_notification.is_read,
-                'follow_request_id': follow_req_notification.follow_request.id
-            })
-        
-        # Sort by creation time
-        combined_notifications.sort(key=lambda x: x['time_ago'], reverse=True)
-        return combined_notifications
-    
-    def get_notification_verb(self, notification):
-        if notification.notification_type == 'like':
-            return 'liked your post'
-        elif notification.notification_type == 'comment':
-            return 'commented on your post'
-        elif notification.notification_type == 'follow':
-            return 'started following you'
-        else:
-            return 'interacted with you'
-    
-    def get_notification_target(self, notification):
-        if notification.post:
-            return f"your post"
-        elif notification.comment:
-            return f"your comment"
-        return ''
-    
-    def get_time_ago(self, created_at):
-        from django.utils import timezone
-        now = timezone.now()
-        diff = now - created_at
-        
-        if diff.days > 0:
-            return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
-        elif diff.seconds > 3600:
-            hours = diff.seconds // 3600
-            return f"{hours} hour{'s' if hours > 1 else ''} ago"
-        elif diff.seconds > 60:
-            minutes = diff.seconds // 60
-            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
-        else:
-            return "just now"
+@login_required
+def share_post_followers(request, post_id):
+    """List followers the current user can share a post with."""
+    get_object_or_404(Post, id=post_id)
+    follower_ids = Follow.objects.filter(
+        following=request.user
+    ).values_list('follower_id', flat=True)
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    followers = User.objects.filter(id__in=follower_ids).order_by('username')[:50]
+    followers_data = []
+    for user in followers:
+        followers_data.append({
+            'id': user.id,
+            'username': user.username,
+            'profile_picture': user.profile_picture.url if user.profile_picture else None,
+        })
+    return JsonResponse({'followers': followers_data})
 
 
 @login_required
+@require_POST
+def share_post(request, post_id):
+    """Share a post with the user's followers via notifications."""
+    post = get_object_or_404(Post, id=post_id)
+    follower_ids = Follow.objects.filter(
+        following=request.user
+    ).values_list('follower_id', flat=True)
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    recipients = User.objects.filter(id__in=follower_ids)
+    shared_count = 0
+    for recipient in recipients:
+        Notification.objects.create(
+            recipient=recipient,
+            sender=request.user,
+            notification_type='share',
+            post=post,
+        )
+        shared_count += 1
+    return JsonResponse({
+        'success': True,
+        'shared_count': shared_count,
+        'message': f'Post shared with {shared_count} follower(s).',
+    })
+
+
+def get_time_ago(created_at):
+    from django.utils import timezone
+    now = timezone.now()
+    diff = now - created_at
+    if diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+    if diff.seconds > 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    if diff.seconds > 60:
+        minutes = diff.seconds // 60
+        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+    return 'just now'
+
+
+def get_notification_verb(notification):
+    verbs = {
+        'like': 'liked your post',
+        'comment': 'commented on your post',
+        'follow': 'started following you',
+        'share': 'shared a post with you',
+    }
+    return verbs.get(notification.notification_type, 'interacted with you')
+
+
+def get_notification_target(notification):
+    if notification.post:
+        return 'your post'
+    if notification.comment:
+        return 'your comment'
+    return ''
+
+
+def build_notifications_list(user):
+    combined = []
+    notifications = Notification.objects.filter(
+        recipient=user
+    ).select_related('sender', 'post', 'comment').order_by('-created_at')
+    for notification in notifications:
+        combined.append({
+            'id': f'notif_{notification.id}',
+            'type': 'notification',
+            'actor': notification.sender.username,
+            'actor_profile_url': reverse('accounts:profile', args=[notification.sender.username]),
+            'actor_avatar': notification.sender.profile_picture.url if notification.sender.profile_picture else '/static/images/default-avatar.png',
+            'verb': get_notification_verb(notification),
+            'target': get_notification_target(notification),
+            'time_ago': get_time_ago(notification.created_at),
+            'is_read': notification.is_read,
+            'post_url': reverse('posts:post_detail', args=[notification.post_id]) if notification.post_id else None,
+            'sort_key': notification.created_at.timestamp(),
+        })
+    follow_requests = FollowRequestNotification.objects.filter(
+        user=user,
+        follow_request__status='pending',
+    ).select_related('follow_request__from_user').order_by('-created_at')
+    for follow_req_notification in follow_requests:
+        combined.append({
+            'id': f'follow_req_{follow_req_notification.id}',
+            'type': 'follow_request',
+            'actor': follow_req_notification.follow_request.from_user.username,
+            'actor_profile_url': reverse('accounts:profile', args=[follow_req_notification.follow_request.from_user.username]),
+            'actor_avatar': follow_req_notification.follow_request.from_user.profile_picture.url if follow_req_notification.follow_request.from_user.profile_picture else '/static/images/default-avatar.png',
+            'verb': 'requested to follow you',
+            'target': '',
+            'time_ago': get_time_ago(follow_req_notification.created_at),
+            'is_read': follow_req_notification.is_read,
+            'follow_request_id': follow_req_notification.follow_request.id,
+            'post_url': None,
+            'sort_key': follow_req_notification.created_at.timestamp(),
+        })
+    combined.sort(key=lambda item: item['sort_key'], reverse=True)
+    return combined
+
+
+class NotificationView(LoginRequiredMixin, TemplateView):
+    template_name = 'posts/notifications.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['notifications'] = build_notifications_list(self.request.user)
+        return context
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'notifications': build_notifications_list(request.user),
+            })
+        return super().get(request, *args, **kwargs)
+
+
+@login_required
+@require_POST
 def mark_notifications_read(request):
-    # Placeholder - will implement when notifications model is created
+    Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    FollowRequestNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return JsonResponse({'success': True})
 
 
 @login_required
+@require_POST
 def mark_notification_read(request, notification_id):
-    # Placeholder - will implement when notifications model is created
+    if notification_id.startswith('notif_'):
+        pk = int(notification_id.replace('notif_', ''))
+        Notification.objects.filter(id=pk, recipient=request.user).update(is_read=True)
+    elif notification_id.startswith('follow_req_'):
+        pk = int(notification_id.replace('follow_req_', ''))
+        FollowRequestNotification.objects.filter(id=pk, user=request.user).update(is_read=True)
     return JsonResponse({'success': True})
 
 

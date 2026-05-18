@@ -136,6 +136,7 @@ function toggleLike(postId) {
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/json',
+            'X-CSRFToken': (window.getCookie || getCookie)('csrftoken')
         },
         body: JSON.stringify({})
     })
