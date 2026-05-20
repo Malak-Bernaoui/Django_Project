@@ -69,25 +69,211 @@
 </div>
 
 <style>
+/* Modern Instagram-like Explore Styles */
+.row.justify-content-center {
+    max-width: 935px;
+    margin: 0 auto;
+}
+
+.col-md-10 {
+    padding: 0;
+}
+
+/* Card Styling */
+.card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Search Form */
+.d-flex {
+    margin-bottom: 0;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+}
+
+.form-control {
+    background-color: var(--background-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 14px 20px;
+    border-radius: 8px 0 0 8px;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.form-control:focus {
+    background-color: var(--background-dark);
+    border-color: var(--electric-pink);
+    box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
+    color: var(--text-primary);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.btn-primary-instagram {
+    background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+    border: none;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 0 8px 8px 0;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-primary-instagram:hover {
+    background: linear-gradient(45deg, var(--electric-pink-dark), var(--electric-pink));
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 20, 147, 0.3);
+}
+
+/* Explore Grid */
 .explore-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    border-radius: 8px;
+    gap: 12px;
+    border-radius: 12px;
     overflow: hidden;
 }
-.explore-item { aspect-ratio: 1; overflow: hidden; }
-.explore-link, .explore-image-wrap { display: block; width: 100%; height: 100%; position: relative; }
-.explore-image { width: 100%; height: 100%; object-fit: cover; display: block; }
-.explore-overlay {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.35);
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.2s;
+
+.explore-item {
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--background-dark);
 }
-.explore-item:hover .explore-overlay { opacity: 1; }
-.explore-stats { display: flex; gap: 16px; color: #fff; font-weight: 600; }
-.stat-item { display: inline-flex; align-items: center; gap: 6px; }
-@media (max-width: 768px) { .explore-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.explore-link,
+.explore-image-wrap {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.explore-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.explore-item:hover .explore-image {
+    transform: scale(1.05);
+}
+
+.explore-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 8px;
+}
+
+.explore-item:hover .explore-overlay {
+    opacity: 1;
+}
+
+.explore-stats {
+    display: flex;
+    gap: 20px;
+    color: #fff;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.stat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-item i {
+    font-size: 1.2rem;
+}
+
+/* Empty State */
+.text-center.text-muted.py-5 {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    padding: 60px 20px;
+}
+
+/* Pagination */
+.pagination .page-link {
+    background: var(--background-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin: 0 4px;
+}
+
+.pagination .page-link:hover {
+    background: var(--medium-gray);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--electric-pink);
+    border-color: var(--electric-pink);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .row.justify-content-center {
+        padding: 0 10px;
+    }
+    
+    .card-body {
+        padding: 16px;
+    }
+    
+    .form-control {
+        padding: 12px 16px;
+        font-size: 0.95rem;
+    }
+    
+    .btn-primary-instagram {
+        padding: 12px 20px;
+    }
+    
+    .explore-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .explore-item {
+        border-radius: 6px;
+    }
+    
+    .explore-stats {
+        gap: 16px;
+        font-size: 0.9rem;
+    }
+    
+    .stat-item i {
+        font-size: 1rem;
+    }
+}
 </style>
 {% endblock %}

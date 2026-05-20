@@ -133,17 +133,101 @@
 </div>
 
 <style>
+/* Modern Instagram-like Edit Profile Styles */
+.row.justify-content-center {
+    max-width: 935px;
+    margin: 0 auto;
+}
+
+.col-md-8 {
+    padding: 0;
+}
+
+/* Card Styling */
+.card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.card-body {
+    padding: 40px;
+}
+
+/* Header Section */
+.text-center.mb-4 h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.text-center.mb-4 p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* Profile Avatar Section */
+.profile-avatar-large {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.profile-avatar-large:hover {
+    transform: scale(1.02);
+}
+
+.position-relative.d-inline-block {
+    position: relative;
+}
+
+.position-relative.d-inline-block label {
+    background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+    border: none;
+    color: white;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.position-relative.d-inline-block label:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(255, 20, 147, 0.4);
+}
+
+.position-relative.d-inline-block label i {
+    font-size: 1.2rem;
+}
+
+input[type="file"][id*="profile_picture"] {
+    display: none;
+}
+
+/* Form Controls */
 .form-control {
-    background-color: var(--background-card);
+    background-color: var(--background-dark);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     padding: 12px 16px;
     border-radius: 8px;
     transition: all 0.3s ease;
+    font-size: 0.95rem;
 }
 
 .form-control:focus {
-    background-color: var(--background-card);
+    background-color: var(--background-dark);
     border-color: var(--electric-pink);
     box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
     color: var(--text-primary);
@@ -153,14 +237,56 @@
     color: var(--text-muted);
 }
 
+textarea.form-control {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* Form Labels */
 .form-label {
     font-weight: 600;
     margin-bottom: 8px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
 }
 
-.card {
-    background: var(--background-card);
-    border: 1px solid var(--border-color);
+.form-label i {
+    color: var(--electric-pink);
+}
+
+.text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+/* Small Helper Text */
+small.text-muted {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Privacy Section */
+.border-top {
+    border-color: var(--border-color) !important;
+    padding-top: 24px;
+}
+
+.h6 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+}
+
+.form-check {
+    padding-left: 0;
+}
+
+.form-check-input {
+    width: 1.3em;
+    height: 1.3em;
+    margin-right: 12px;
 }
 
 .form-check-input:checked {
@@ -173,39 +299,99 @@
     box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
 }
 
-input[type="file"][id*="profile_picture"] {
-    display: none;
+.form-check-label {
+    color: var(--text-primary);
+    font-size: 0.95rem;
 }
 
-.profile-avatar-large {
-    border: 4px solid var(--electric-pink);
-    box-shadow: 0 0 20px rgba(255, 20, 147, 0.3);
+.form-check-label strong {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
-.border-top {
-    border-color: var(--border-color) !important;
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all 0.2s ease;
 }
 
 .btn-outline-secondary {
-    border-color: var(--border-light);
-    color: var(--text-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    background: transparent;
 }
 
 .btn-outline-secondary:hover {
     background-color: var(--medium-gray);
-    border-color: var(--border-light);
+    border-color: var(--border-color);
     color: var(--text-primary);
+}
+
+.btn-primary-instagram {
+    background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+    border: none;
+    color: white;
+}
+
+.btn-primary-instagram:hover {
+    background: linear-gradient(45deg, var(--electric-pink-dark), var(--electric-pink));
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 20, 147, 0.3);
 }
 
 .btn-outline-danger {
-    border-color: var(--border-light);
+    border-color: var(--border-color);
     color: var(--text-muted);
+    background: transparent;
 }
 
 .btn-outline-danger:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: var(--border-light);
-    color: var(--text-primary);
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+/* Error Messages */
+.text-danger {
+    color: #dc3545 !important;
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .row.justify-content-center {
+        padding: 0 10px;
+    }
+    
+    .card-body {
+        padding: 24px;
+    }
+    
+    .profile-avatar-large {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .text-center.mb-4 h3 {
+        font-size: 1.5rem;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .d-flex.gap-2 {
+        width: 100%;
+    }
+    
+    .d-flex.gap-2 .btn {
+        flex: 1;
+    }
 }
 </style>
 

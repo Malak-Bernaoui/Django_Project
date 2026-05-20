@@ -1,117 +1,397 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static messaging_extras %}
 
 {% block title %}Messages - Hello World{% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar -->
-        <div class="col-md-3 col-lg-2 sidebar">
-            <div class="d-flex flex-column p-3">
-                <h5 class="text-white mb-4">Messages</h5>
-                
-                <!-- New Message Button -->
-                <button class="btn btn-primary-instagram w-100 mb-3" data-bs-toggle="modal" data-bs-target="#newMessageModal">
-                    <i class="bi bi-pencil-square me-2"></i>New Message
-                </button>
-                
-                <!-- Navigation -->
-                <nav class="nav flex-column">
-                    <a href="{% url 'messaging:inbox' %}" class="nav-link text-white active">
-                        <i class="bi bi-chat-dots me-2"></i>Inbox
-                        {% if message_requests %}
-                            <span class="badge bg-danger ms-auto">{{ message_requests.count }}</span>
-                        {% endif %}
-                    </a>
-                    <a href="{% url 'messaging:message_requests' %}" class="nav-link text-white">
-                        <i class="bi bi-envelope-open me-2"></i>Invitations
-                        {% if message_requests %}
-                            <span class="badge bg-danger ms-auto">{{ message_requests.count }}</span>
-                        {% endif %}
-                    </a>
-                </nav>
-            </div>
-        </div>
+{% block extra_css %}
+<style>
+    .messages-page {
+        max-width: 680px;
+        margin: 0 auto;
+    }
 
-        <!-- Main Content -->
-        <div class="col-md-9 col-lg-10 main-content">
-            <div class="p-4">
-                <h3 class="mb-4">Messages</h3>
-                
-                {% if conversations %}
-                    <div class="conversation-list">
-                        {% for conversation in conversations %}
-                            <div class="conversation-item">
-                                <a href="{% url 'messaging:conversation' conversation.id %}" class="text-decoration-none">
-                                    <div class="d-flex align-items-center p-3 border-bottom hover-bg">
-                                        {% with other_user=conversation.get_other_participant %}
-                                            <img src="{{ other_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
-                                                 alt="{{ other_user.username }}" class="rounded-circle me-3" 
-                                                 style="width: 50px; height: 50px; object-fit: cover;">
-                                            <div class="flex-grow-1">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <h6 class="mb-1 text-dark">{{ other_user.username }}</h6>
-                                                    <small class="text-muted">
-                                                        {% with last_message=conversation.get_last_message %}
-                                                            {% if last_message %}
-                                                                {{ last_message.created_at|date:"H:i" }}
-                                                            {% endif %}
-                                                        {% endwith %}
-                                                    </small>
-                                                </div>
-                                                <p class="mb-0 text-muted small">
-                                                    {% with last_message=conversation.get_last_message %}
-                                                        {% if last_message %}
-                                                            {% if last_message.sender == user %}
-                                                                You: {{ last_message.content|truncatechars:50 }}
-                                                            {% else %}
-                                                                {{ last_message.content|truncatechars:50 }}
-                                                            {% endif %}
-                                                        {% else %}
-                                                            No messages yet
-                                                        {% endif %}
-                                                    {% endwith %}
-                                                </p>
-                                            </div>
-                                        {% endwith %}
-                                    </div>
-                                </a>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-chat-dots display-4 text-muted mb-3"></i>
-                        <h5 class="text-muted">No messages yet</h5>
-                        <p class="text-muted">Start a conversation with someone!</p>
-                        <button class="btn btn-primary-instagram" data-bs-toggle="modal" data-bs-target="#newMessageModal">
-                            <i class="bi bi-pencil-square me-2"></i>Send Message
-                        </button>
-                    </div>
-                {% endif %}
-            </div>
+    .messages-page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .messages-page-header h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .messages-page-header p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .messages-new-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .messages-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+        padding: 4px;
+        background: var(--background-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+
+    .messages-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .messages-tab:hover {
+        color: var(--text-primary);
+        background: var(--medium-gray);
+    }
+
+    .messages-tab.active {
+        background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+        color: #fff;
+    }
+
+    .messages-tab .tab-badge {
+        background: rgba(255, 255, 255, 0.25);
+        color: inherit;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.45rem;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .messages-tab:not(.active) .tab-badge {
+        background: var(--electric-pink);
+        color: #fff;
+    }
+
+    .conversation-list {
+        background: var(--background-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .conversation-link {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+        padding: 0.875rem 1rem;
+        text-decoration: none;
+        color: inherit;
+        border-bottom: 1px solid var(--border-color);
+        transition: background 0.15s ease;
+    }
+
+    .conversation-link:last-child {
+        border-bottom: none;
+    }
+
+    .conversation-link:hover {
+        background: var(--medium-gray);
+    }
+
+    .conversation-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border-color);
+        flex-shrink: 0;
+    }
+
+    .conversation-body {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .conversation-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .conversation-username {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .conversation-time {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        flex-shrink: 0;
+    }
+
+    .conversation-preview {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .conversation-preview.you {
+        color: var(--text-muted);
+    }
+
+    .conversation-preview.empty {
+        font-style: italic;
+        color: var(--text-muted);
+    }
+
+    .inbox-empty {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        background: var(--background-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+    }
+
+    .inbox-empty-icon {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 1.25rem;
+        border-radius: 50%;
+        background: var(--medium-gray);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--electric-pink);
+    }
+
+    .inbox-empty h5 {
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .inbox-empty p {
+        color: var(--text-muted);
+        margin-bottom: 1.25rem;
+    }
+
+    /* New message modal — dark theme */
+    #newMessageModal .modal-content {
+        background: var(--background-card);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+    }
+
+    #newMessageModal .modal-header {
+        border-bottom-color: var(--border-color);
+    }
+
+    #newMessageModal .modal-footer {
+        border-top-color: var(--border-color);
+    }
+
+    #newMessageModal .modal-title {
+        font-weight: 600;
+    }
+
+    #newMessageModal .btn-close {
+        filter: invert(1);
+        opacity: 0.7;
+    }
+
+    #newMessageModal .form-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+
+    #newMessageModal .form-control {
+        background: var(--background-dark) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+    }
+
+    #newMessageModal .form-control::placeholder {
+        color: var(--text-muted);
+    }
+
+    #newMessageModal .form-control:focus {
+        border-color: var(--electric-pink) !important;
+        box-shadow: 0 0 0 0.15rem rgba(255, 20, 147, 0.2) !important;
+    }
+
+    #newMessageModal .btn-secondary {
+        background: var(--medium-gray);
+        border-color: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    .search-result-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.65rem 0.75rem;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+        border: 1px solid transparent;
+        margin-bottom: 0.35rem;
+    }
+
+    .search-result-item:hover {
+        background: var(--medium-gray);
+    }
+
+    .search-result-item.selected {
+        background: var(--medium-gray);
+        border-color: var(--electric-pink);
+    }
+
+    .search-result-item img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 1px solid var(--border-color);
+    }
+
+    .search-result-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .search-result-hint {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .search-no-results {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        padding: 0.5rem 0;
+    }
+
+    @media (max-width: 576px) {
+        .messages-page-header {
+            flex-direction: column;
+        }
+
+        .messages-new-btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="messages-page">
+    <div class="messages-page-header">
+        <div>
+            <h1>Messages</h1>
+            <p>Your conversations</p>
         </div>
+        <button type="button" class="btn btn-primary-instagram messages-new-btn" data-bs-toggle="modal" data-bs-target="#newMessageModal">
+            <i class="bi bi-pencil-square me-2"></i>New message
+        </button>
     </div>
+
+    <nav class="messages-tabs" aria-label="Messages navigation">
+        <a href="{% url 'messaging:inbox' %}" class="messages-tab active" aria-current="page">
+            <i class="bi bi-chat-dots"></i>
+            Inbox
+        </a>
+        <a href="{% url 'messaging:message_requests' %}" class="messages-tab">
+            <i class="bi bi-envelope-open"></i>
+            Invitations
+            {% if message_requests %}
+                <span class="tab-badge">{{ message_requests.count }}</span>
+            {% endif %}
+        </a>
+    </nav>
+
+    {% if conversations %}
+        <div class="conversation-list">
+            {% for conversation in conversations %}
+                {% conversation_other conversation as other_user %}
+                    {% with last_message=conversation.get_last_message %}
+                        <a href="{% url 'messaging:conversation' conversation.id %}" class="conversation-link">
+                            <img src="{{ other_user.profile_picture.url }}"
+                                 alt="{{ other_user.username }}"
+                                 class="conversation-avatar"
+                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ other_user.username|urlencode }}&background=FF1493&color=fff'">
+                            <div class="conversation-body">
+                                <div class="conversation-top">
+                                    <span class="conversation-username">{{ other_user.username }}</span>
+                                    {% if last_message %}
+                                        <span class="conversation-time">{{ last_message.created_at|timesince }} ago</span>
+                                    {% endif %}
+                                </div>
+                                <p class="conversation-preview {% if not last_message %}empty{% elif last_message.sender == user %}you{% endif %}">
+                                    {% if last_message %}
+                                        {% if last_message.sender == user %}You: {% endif %}{{ last_message.content|truncatechars:60 }}
+                                    {% else %}
+                                        No messages yet — tap to chat
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </a>
+                    {% endwith %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="inbox-empty">
+            <div class="inbox-empty-icon">
+                <i class="bi bi-chat-dots"></i>
+            </div>
+            <h5>No conversations yet</h5>
+            <p>Find someone and send your first message.</p>
+            <button type="button" class="btn btn-primary-instagram" data-bs-toggle="modal" data-bs-target="#newMessageModal">
+                <i class="bi bi-pencil-square me-2"></i>New message
+            </button>
+        </div>
+    {% endif %}
 </div>
 
 <!-- New Message Modal -->
-<div class="modal fade" id="newMessageModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="newMessageModal" tabindex="-1" aria-labelledby="newMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">New Message</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="newMessageModalLabel">New message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label for="recipient-search" class="form-label">To:</label>
-                    <input type="text" class="form-control" id="recipient-search" placeholder="Search for users...">
+                    <label for="recipient-search" class="form-label">To</label>
+                    <input type="text" class="form-control" id="recipient-search" placeholder="Search by username…" autocomplete="off">
                     <div id="search-results" class="mt-2"></div>
                 </div>
-                <div class="mb-3" id="message-form" style="display: none;">
-                    <label for="message-content" class="form-label">Message:</label>
-                    <textarea class="form-control" id="message-content" rows="3" placeholder="Type your message..."></textarea>
+                <div class="mb-0" id="new-message-compose" style="display: none;">
+                    <label for="message-content" class="form-label">Message</label>
+                    <textarea class="form-control" id="message-content" rows="3" placeholder="Write your message…"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
@@ -121,192 +401,142 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-.sidebar {
-    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
-    min-height: 100vh;
-}
-
-.conversation-item:hover .hover-bg {
-    background: var(--background-light);
-    transition: background 0.2s ease;
-}
-
-.conversation-item {
-    border-bottom: 1px solid var(--border-color);
-}
-
-.conversation-item:last-child {
-    border-bottom: none;
-}
-
-.search-result-item {
-    padding: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.search-result-item:hover {
-    background: var(--background-light);
-}
-
-.search-result-item.selected {
-    background: var(--background-light);
-    border: 1px solid var(--electric-pink);
-}
-</style>
-
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const recipientSearch = document.getElementById('recipient-search');
     const searchResults = document.getElementById('search-results');
-    const messageForm = document.getElementById('message-form');
+    const composeBlock = document.getElementById('new-message-compose');
     const sendBtn = document.getElementById('send-message-btn');
     const messageContent = document.getElementById('message-content');
-    
+    const modalEl = document.getElementById('newMessageModal');
+
+    const searchUrl = "{% url 'messaging:search_users' %}";
+    const startUrlBase = "{% url 'messaging:start_conversation' '__user__' %}".replace('__user__', '');
+    const sendRequestUrlBase = "{% url 'messaging:send_message_request' '__user__' %}".replace('__user__', '');
+    const conversationUrlBase = "{% url 'messaging:conversation' 0 %}".replace('/0/', '/');
+
     let selectedUser = null;
     let searchTimeout;
 
-    // Search users
-    recipientSearch.addEventListener('input', function(e) {
+    recipientSearch.addEventListener('input', function() {
         clearTimeout(searchTimeout);
-        const query = e.target.value.trim();
-        
+        const query = this.value.trim();
+
         if (query.length < 2) {
             searchResults.innerHTML = '';
             selectedUser = null;
-            messageForm.style.display = 'none';
+            composeBlock.style.display = 'none';
             sendBtn.disabled = true;
             return;
         }
-        
+
         searchTimeout = setTimeout(function() {
-            fetch(`/messages/search-users/?q=${encodeURIComponent(query)}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+            fetch(searchUrl + '?q=' + encodeURIComponent(query), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(response => response.json())
-            .then(data => {
-                displaySearchResults(data.users);
-            })
-            .catch(error => console.error('Search error:', error));
+            .then(function(r) { return r.json(); })
+            .then(function(data) { displaySearchResults(data.users || []); })
+            .catch(function(err) { console.error('Search error:', err); });
         }, 300);
     });
 
+    function escapeHtml(text) {
+        const el = document.createElement('div');
+        el.textContent = text;
+        return el.innerHTML;
+    }
+
     function displaySearchResults(users) {
+        if (!users.length) {
+            searchResults.innerHTML = '<p class="search-no-results mb-0">No users found.</p>';
+            return;
+        }
+
         let html = '';
-        users.forEach(user => {
-            html += `
-                <div class="search-result-item d-flex align-items-center p-2" data-username="${user.username}" data-can-message="${user.can_message}">
-                    <img src="${user.profile_picture || '/static/images/default-avatar.png'}" 
-                         alt="${user.username}" class="rounded-circle me-2" 
-                         style="width: 40px; height: 40px; object-fit: cover;">
-                    <div class="flex-grow-1">
-                        <div class="fw-bold">${user.username}</div>
-                        <div class="small text-muted">
-                            ${user.can_message ? 'Can message directly' : 'Requires message request'}
-                        </div>
-                    </div>
-                </div>
-            `;
+        users.forEach(function(user) {
+            const avatar = user.profile_picture || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username) + '&background=FF1493&color=fff');
+            html += '<div class="search-result-item" data-username="' + escapeHtml(user.username) + '" data-can-message="' + user.can_message + '">' +
+                '<img src="' + escapeHtml(avatar) + '" alt="">' +
+                '<div><div class="search-result-name">' + escapeHtml(user.username) + '</div>' +
+                '<div class="search-result-hint">' + (user.can_message ? 'Can message directly' : 'Sends an invitation') + '</div></div></div>';
         });
-        
         searchResults.innerHTML = html;
-        
-        // Add click handlers
-        document.querySelectorAll('.search-result-item').forEach(item => {
-            item.addEventListener('click', function() {
-                selectUser(this);
-            });
+
+        searchResults.querySelectorAll('.search-result-item').forEach(function(item) {
+            item.addEventListener('click', function() { selectUser(this); });
         });
     }
 
     function selectUser(element) {
-        // Remove previous selection
-        document.querySelectorAll('.search-result-item').forEach(item => {
+        searchResults.querySelectorAll('.search-result-item').forEach(function(item) {
             item.classList.remove('selected');
         });
-        
-        // Add selection
         element.classList.add('selected');
-        
         selectedUser = {
             username: element.dataset.username,
             canMessage: element.dataset.canMessage === 'true'
         };
-        
-        // Show message form
-        messageForm.style.display = 'block';
+        composeBlock.style.display = 'block';
         messageContent.focus();
-        
-        // Enable send button if there's content
         sendBtn.disabled = !messageContent.value.trim();
     }
 
-    // Handle message content input
     messageContent.addEventListener('input', function() {
         sendBtn.disabled = !this.value.trim() || !selectedUser;
     });
 
-    // Send message
     sendBtn.addEventListener('click', function() {
         if (!selectedUser || !messageContent.value.trim()) return;
-        
+
         if (selectedUser.canMessage) {
-            // Start conversation directly
-            fetch(`/messages/start/${selectedUser.username}/`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+            fetch(startUrlBase + encodeURIComponent(selectedUser.username) + '/', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Redirect to conversation
-                    window.location.href = `/messages/conversation/${data.conversation_id}/`;
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.conversation_id) {
+                    window.location.href = conversationUrlBase + data.conversation_id + '/';
+                } else {
+                    alert(data.error || 'Could not start conversation.');
                 }
             });
         } else {
-            // Send message request
-            fetch(`/messages/send-request/${selectedUser.username}/`, {
+            fetch(sendRequestUrlBase + encodeURIComponent(selectedUser.username) + '/', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'X-CSRFToken': getCookie('csrftoken')
                 },
-                body: `content=${encodeURIComponent(messageContent.value)}`
+                body: 'content=' + encodeURIComponent(messageContent.value)
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 if (data.success) {
-                    alert('Message request sent! They will need to accept it before you can chat.');
-                    bootstrap.Modal.getInstance(document.getElementById('newMessageModal')).hide();
+                    alert('Invitation sent. They can accept it before you chat.');
+                    bootstrap.Modal.getInstance(modalEl).hide();
+                    resetModal();
                 } else {
-                    alert(data.error || 'Error sending message request');
+                    alert(data.error || 'Could not send invitation.');
                 }
             });
         }
     });
 
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
+    modalEl.addEventListener('hidden.bs.modal', resetModal);
+
+    function resetModal() {
+        recipientSearch.value = '';
+        messageContent.value = '';
+        searchResults.innerHTML = '';
+        composeBlock.style.display = 'none';
+        selectedUser = null;
+        sendBtn.disabled = true;
     }
 });
 </script>
 {% endblock %}
+

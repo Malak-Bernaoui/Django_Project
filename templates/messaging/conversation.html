@@ -1,410 +1,605 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static messaging_extras %}
 
-{% block title %}{{ conversation.get_other_participant.username }} - Messages{% endblock %}
+{% block title %}{% conversation_other conversation as other_user %}{{ other_user.username }} - Messages{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Fit chat inside base layout (left nav + optional right sidebar) */
+    main.main-content:has(.chat-page) {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 20px 20px;
+        min-height: 100vh;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .chat-page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+        min-height: 0;
+    }
+
+    .chat-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--background-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--background-sidebar);
+        flex-shrink: 0;
+        z-index: 2;
+    }
+
+    .chat-back {
+        color: var(--text-secondary);
+        text-decoration: none;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background 0.2s, color 0.2s;
+        flex-shrink: 0;
+    }
+
+    .chat-back:hover {
+        background: var(--medium-gray);
+        color: var(--electric-pink);
+    }
+
+    .chat-header-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border-color);
+        flex-shrink: 0;
+    }
+
+    .chat-header-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chat-header-info h2 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin: 0;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chat-header-info h2 a {
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+
+    .chat-header-info h2 a:hover {
+        color: var(--electric-pink);
+    }
+
+    .chat-header-status {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .chat-menu-btn {
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .chat-menu-btn:hover,
+    .chat-menu-btn:focus {
+        background: var(--medium-gray);
+        color: var(--text-primary);
+        box-shadow: none;
+    }
+
+    .chat-dropdown {
+        background: var(--background-card);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        padding: 0.35rem 0;
+    }
+
+    .chat-dropdown .dropdown-item {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .chat-dropdown .dropdown-item:hover,
+    .chat-dropdown .dropdown-item:focus {
+        background: var(--medium-gray);
+        color: var(--electric-pink);
+    }
+
+    .chat-dropdown .dropdown-item.text-danger {
+        color: #f87171;
+    }
+
+    .chat-dropdown .dropdown-item.text-danger:hover {
+        color: #fca5a5;
+        background: rgba(220, 53, 69, 0.12);
+    }
+
+    .chat-dropdown .dropdown-divider {
+        border-color: var(--border-color);
+        margin: 0.35rem 0;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 1rem;
+        background: var(--background-dark);
+        scroll-behavior: smooth;
+        min-height: 0;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: var(--lighter-gray);
+        border-radius: 3px;
+    }
+
+    #messages-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .chat-messages-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 280px;
+        text-align: center;
+        color: var(--text-muted);
+        padding: 2rem 1rem;
+    }
+
+    .chat-messages-empty-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--medium-gray);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        color: var(--electric-pink);
+        margin-bottom: 1rem;
+    }
+
+    .chat-messages-empty h5 {
+        color: var(--text-secondary);
+        margin-bottom: 0.35rem;
+        font-size: 1rem;
+    }
+
+    .chat-messages-empty p {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .message-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.45rem;
+        max-width: 100%;
+        animation: messageIn 0.2s ease;
+    }
+
+    .message-row.sent {
+        justify-content: flex-end;
+        margin-left: 15%;
+    }
+
+    .message-row.received {
+        margin-right: 15%;
+    }
+
+    @keyframes messageIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid var(--border-color);
+    }
+
+    .message-bubble {
+        max-width: 100%;
+        padding: 0.6rem 0.85rem;
+        border-radius: 18px;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        line-height: 1.4;
+    }
+
+    .message-bubble p {
+        margin: 0 0 0.2rem;
+        font-size: 0.94rem;
+        color: inherit;
+    }
+
+    .message-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.25rem;
+        font-size: 0.68rem;
+        opacity: 0.85;
+        margin: 0;
+    }
+
+    .message-bubble.sent {
+        background: linear-gradient(135deg, var(--electric-pink), var(--electric-pink-dark));
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-bubble.sent .message-meta {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .message-bubble.received {
+        background: var(--background-card);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-bottom-left-radius: 4px;
+    }
+
+    .message-bubble.received .message-meta {
+        color: var(--text-muted);
+    }
+
+    .chat-composer {
+        flex-shrink: 0;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--border-color);
+        background: var(--background-sidebar);
+    }
+
+    .chat-composer form {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: 100%;
+        margin: 0;
+    }
+
+    .chat-composer .form-control {
+        flex: 1;
+        background-color: var(--background-dark) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 24px !important;
+        padding: 0.6rem 1rem !important;
+        font-size: 0.95rem;
+        min-height: 44px;
+        box-shadow: none !important;
+    }
+
+    .chat-composer .form-control::placeholder {
+        color: var(--text-muted);
+    }
+
+    .chat-composer .form-control:focus {
+        border-color: var(--electric-pink) !important;
+        box-shadow: 0 0 0 0.15rem rgba(255, 20, 147, 0.2) !important;
+    }
+
+    .chat-send-btn.btn-primary-instagram {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .chat-send-btn i {
+        font-size: 1rem;
+        margin-left: 2px;
+    }
+
+    @media (max-width: 1200px) {
+        main.main-content:has(.chat-page) {
+            padding: 10px 16px 16px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        main.main-content:has(.chat-page) {
+            padding: 8px 10px 12px;
+            min-height: 100dvh;
+        }
+
+        .chat-panel {
+            border-radius: 12px;
+        }
+
+        .message-row.sent {
+            margin-left: 5%;
+        }
+
+        .message-row.received {
+            margin-right: 5%;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Left Sidebar -->
-        <div class="col-md-3 col-lg-2 sidebar">
-            <div class="d-flex flex-column p-3">
-                <h5 class="text-white mb-4">Messages</h5>
-                
-                <!-- Navigation -->
-                <nav class="nav flex-column">
-                    <a href="{% url 'messaging:inbox' %}" class="nav-link text-white">
-                        <i class="bi bi-chat-dots me-2"></i>Inbox
-                    </a>
-                    <a href="{% url 'messaging:message_requests' %}" class="nav-link text-white">
-                        <i class="bi bi-person-plus me-2"></i>Message Requests
-                    </a>
-                </nav>
+{% conversation_other conversation as other_user %}
+<div class="chat-page">
+    <div class="chat-panel">
+        <header class="chat-header">
+            <a href="{% url 'messaging:inbox' %}" class="chat-back" aria-label="Back to inbox">
+                <i class="bi bi-arrow-left fs-5"></i>
+            </a>
+            <img src="{{ other_user.profile_picture.url }}"
+                 alt="{{ other_user.username }}"
+                 class="chat-header-avatar"
+                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ other_user.username|urlencode }}&background=FF1493&color=fff'">
+            <div class="chat-header-info">
+                <h2>
+                    <a href="{% url 'accounts:profile' other_user.username %}">{{ other_user.username }}</a>
+                </h2>
+                <span class="chat-header-status">Direct message</span>
             </div>
-        </div>
-
-        <!-- Main Chat Area -->
-        <div class="col-md-9 col-lg-10 main-content">
-            <!-- Chat Header -->
-            <div class="chat-header p-3 border-bottom">
-                <div class="d-flex align-items-center">
-                    <a href="{% url 'messaging:inbox' %}" class="btn btn-link text-dark me-3">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    {% with other_user=conversation.get_other_participant %}
-                        <img src="{{ other_user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
-                             alt="{{ other_user.username }}" class="rounded-circle me-3" 
-                             style="width: 40px; height: 40px; object-fit: cover;">
-                        <div class="flex-grow-1">
-                            <h6 class="mb-0">{{ other_user.username }}</h6>
-                            <small class="text-muted">Active now</small>
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-link text-dark" data-bs-toggle="dropdown">
-                                <i class="bi bi-three-dots"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'accounts:profile' other_user.username %}">View Profile</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="deleteConversation()">Delete Conversation</a></li>
-                            </ul>
-                        </div>
-                    {% endwith %}
-                </div>
+            <div class="dropdown">
+                <button type="button" class="chat-menu-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Options">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end chat-dropdown">
+                    <li>
+                        <a class="dropdown-item" href="{% url 'accounts:profile' other_user.username %}">
+                            <i class="bi bi-person me-2"></i>View profile
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button" class="dropdown-item text-danger" onclick="deleteConversation()">
+                            <i class="bi bi-trash me-2"></i>Delete conversation
+                        </button>
+                    </li>
+                </ul>
             </div>
+        </header>
 
-            <!-- Messages Container -->
-            <div class="messages-container p-4" id="messages-container" style="height: calc(100vh - 200px); overflow-y: auto;">
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="message-item mb-3 {% if message.sender == user %}sent-message{% else %}received-message{% endif %}">
-                            <div class="d-flex {% if message.sender == user %}justify-content-end{% else %}justify-content-start{% endif %}">
-                                {% if message.sender != user %}
-                                    <img src="{{ message.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
-                                         alt="{{ message.sender.username }}" class="rounded-circle me-2" 
-                                         style="width: 30px; height: 30px; object-fit: cover;">
-                                {% endif %}
-                                <div class="message-bubble p-3 {% if message.sender == user %}bg-primary text-white{% else %}bg-light{% endif %}" 
-                                     style="max-width: 70%; border-radius: 18px;">
-                                    <p class="mb-1">{{ message.content }}</p>
-                                    <small class="{% if message.sender == user %}text-white-50{% else %}text-muted{% endif %}">
-                                        {{ message.created_at|date:"H:i" }}
-                                        {% if message.sender == user and message.is_read %}
-                                            <i class="bi bi-check2-all ms-1"></i>
+        <div class="chat-messages" id="messages-container" role="log" aria-live="polite">
+            {% if chat_messages %}
+                <div id="messages-list">
+                    {% for msg in chat_messages %}
+                        <div class="message-row {% if msg.sender == user %}sent{% else %}received{% endif %}" data-message-id="{{ msg.id }}">
+                            {% if msg.sender != user %}
+                                <img src="{{ msg.sender.profile_picture.url }}"
+                                     alt=""
+                                     class="message-avatar"
+                                     onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ msg.sender.username|urlencode }}&background=555&color=fff&size=28'">
+                            {% endif %}
+                            <div class="message-bubble {% if msg.sender == user %}sent{% else %}received{% endif %}">
+                                <p>{{ msg.content }}</p>
+                                <p class="message-meta">
+                                    <time datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"H:i" }}</time>
+                                    {% if msg.sender == user %}
+                                        {% if msg.is_read %}
+                                            <i class="bi bi-check2-all" aria-label="Read"></i>
+                                        {% else %}
+                                            <i class="bi bi-check2" aria-label="Sent"></i>
                                         {% endif %}
-                                    </small>
-                                </div>
-                                {% if message.sender == user %}
-                                    <img src="{{ message.sender.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
-                                         alt="{{ message.sender.username }}" class="rounded-circle ms-2" 
-                                         style="width: 30px; height: 30px; object-fit: cover;">
-                                {% endif %}
+                                    {% endif %}
+                                </p>
                             </div>
+                            {% if msg.sender == user %}
+                                <img src="{{ user.profile_picture.url }}"
+                                     alt=""
+                                     class="message-avatar"
+                                     onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=FF1493&color=fff&size=28'">
+                            {% endif %}
                         </div>
                     {% endfor %}
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-chat-dots display-4 text-muted mb-3"></i>
-                        <h5 class="text-muted">No messages yet</h5>
-                        <p class="text-muted">Start the conversation!</p>
+                </div>
+            {% else %}
+                <div class="chat-messages-empty" id="chat-empty-state">
+                    <div class="chat-messages-empty-icon">
+                        <i class="bi bi-chat-heart"></i>
                     </div>
-                {% endif %}
-            </div>
-
-            <!-- Message Input -->
-            <div class="message-input p-3 border-top">
-                <form id="message-form" class="d-flex align-items-center">
-                    <div class="flex-grow-1 me-2">
-                        <input type="text" id="message-input" class="form-control" placeholder="Type a message..." autocomplete="off">
-                    </div>
-                    <button type="submit" class="btn btn-primary-instagram">
-                        <i class="bi bi-send"></i>
-                    </button>
-                </form>
-            </div>
+                    <h5>No messages yet</h5>
+                    <p>Say hello to {{ other_user.username }}.</p>
+                </div>
+            {% endif %}
         </div>
+
+        <footer class="chat-composer">
+            <form id="message-form">
+                <input type="text"
+                       id="message-input"
+                       class="form-control"
+                       placeholder="Message {{ other_user.username }}…"
+                       autocomplete="off"
+                       maxlength="2000"
+                       aria-label="Message text">
+                <button type="submit" class="btn btn-primary-instagram chat-send-btn" aria-label="Send">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </form>
+        </footer>
     </div>
 </div>
+{% endblock %}
 
-<style>
-.sidebar {
-    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
-    min-height: 100vh;
-}
-
-.chat-header {
-    background: white;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.messages-container {
-    background: linear-gradient(to bottom, #f8f9fa, #ffffff);
-    scroll-behavior: smooth;
-}
-
-.message-bubble {
-    word-wrap: break-word;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    animation: fadeInUp 0.3s ease;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.sent-message .message-bubble {
-    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
-    color: white;
-    border-bottom-right-radius: 4px;
-}
-
-.received-message .message-bubble {
-    background: white;
-    color: black;
-    border: 1px solid #e9ecef;
-    border-bottom-left-radius: 4px;
-}
-
-.message-input {
-    background: white;
-    border-top: 1px solid var(--border-color);
-}
-
-#message-input {
-    border-radius: 25px;
-    border: 1px solid var(--border-color);
-    padding: 12px 20px;
-}
-
-#message-input:focus {
-    border-color: var(--electric-pink);
-    box-shadow: 0 0 0 0.2rem rgba(255, 0, 150, 0.25);
-}
-
-.btn-primary-instagram {
-    border-radius: 50%;
-    width: 45px;
-    height: 45px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--electric-pink), var(--electric-purple));
-    border: none;
-}
-
-.btn-primary-instagram:hover {
-    transform: scale(1.05);
-    transition: transform 0.2s ease;
-}
-
-/* Message animations */
-.message-item {
-    animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.sent-message {
-    animation: slideInRight 0.3s ease;
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-/* Typing indicator */
-.typing-indicator {
-    display: none;
-    align-items: center;
-    padding: 10px;
-}
-
-.typing-indicator .dots {
-    display: flex;
-    gap: 4px;
-}
-
-.typing-indicator .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #6c757d;
-    animation: typing 1.4s infinite;
-}
-
-.typing-indicator .dot:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.typing-indicator .dot:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes typing {
-    0%, 60%, 100% {
-        transform: translateY(0);
-    }
-    30% {
-        transform: translateY(-10px);
-    }
-}
-</style>
-
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const messageForm = document.getElementById('message-form');
     const messageInput = document.getElementById('message-input');
     const messagesContainer = document.getElementById('messages-container');
-    
-    // Scroll to bottom on load
+    const sendUrl = "{% url 'messaging:send_message' conversation.id %}";
+    const userAvatar = "{{ user.profile_picture.url|escapejs }}";
+    const avatarFallback = "https://ui-avatars.com/api/?name={{ user.username|urlencode }}&background=FF1493&color=fff&size=28";
+
+    ensureMessagesList();
     scrollToBottom();
-    
-    // Handle message submission
+
     messageForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        
         const content = messageInput.value.trim();
         if (!content) return;
-        
-        // Add message to chat immediately (optimistic UI)
-        addMessageToChat({
-            content: content,
-            created_at: new Date().toISOString(),
-            sender: '{{ user.username }}'
-        }, true);
-        
+
+        hideEmptyState();
+        addMessageToChat({ content: content, created_at: new Date().toISOString() }, true);
         messageInput.value = '';
-        
-        // Send message via AJAX
-        fetch(`/messages/send/{{ conversation.id }}/`, {
+
+        fetch(sendUrl, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: `content=${encodeURIComponent(content)}`
+            body: 'content=' + encodeURIComponent(content)
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
             if (data.success) {
-                // Message already added optimistically
                 scrollToBottom();
             } else {
-                // Remove the optimistic message if it failed
-                removeLastMessage();
-                alert(data.error || 'Error sending message');
+                removeLastSentMessage();
+                alert(data.error || 'Could not send message.');
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            removeLastMessage();
-            alert('Error sending message');
+        .catch(function() {
+            removeLastSentMessage();
+            alert('Something went wrong. Please try again.');
         });
     });
-    
-    function addMessageToChat(messageData, isSent = false) {
-        const messageHtml = `
-            <div class="message-item mb-3 ${isSent ? 'sent-message' : 'received-message'}">
-                <div class="d-flex ${isSent ? 'justify-content-end' : 'justify-content-start'}">
-                    ${!isSent ? `
-                        <img src="${messageData.sender_profile_picture || '/static/images/default-avatar.png'}" 
-                             alt="${messageData.sender}" class="rounded-circle me-2" 
-                             style="width: 30px; height: 30px; object-fit: cover;">
-                    ` : ''}
-                    <div class="message-bubble p-3 ${isSent ? 'bg-primary text-white' : 'bg-light'}" style="max-width: 70%; border-radius: 18px;">
-                        <p class="mb-1">${messageData.content}</p>
-                        <small class="${isSent ? 'text-white-50' : 'text-muted'}">
-                            ${new Date(messageData.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            ${isSent ? '<i class="bi bi-check ms-1"></i>' : ''}
-                        </small>
-                    </div>
-                    ${isSent ? `
-                        <img src="{{ user.profile_picture.url|default:'/static/images/default-avatar.png' }}" 
-                             alt="{{ user.username }}" class="rounded-circle ms-2" 
-                             style="width: 30px; height: 30px; object-fit: cover;">
-                    ` : ''}
-                </div>
-            </div>
-        `;
-        
-        messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
-    }
-    
-    function removeLastMessage() {
-        const lastMessage = messagesContainer.lastElementChild;
-        if (lastMessage && lastMessage.classList.contains('sent-message')) {
-            lastMessage.remove();
+
+    function ensureMessagesList() {
+        let list = document.getElementById('messages-list');
+        if (!list) {
+            list = document.createElement('div');
+            list.id = 'messages-list';
+            messagesContainer.appendChild(list);
         }
+        return list;
     }
-    
+
+    function escapeHtml(text) {
+        const el = document.createElement('div');
+        el.textContent = text;
+        return el.innerHTML;
+    }
+
+    function formatTime(isoString) {
+        return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function hideEmptyState() {
+        const empty = document.getElementById('chat-empty-state');
+        if (empty) empty.remove();
+        ensureMessagesList();
+    }
+
+    function addMessageToChat(messageData, isSent) {
+        const list = ensureMessagesList();
+        const row = document.createElement('div');
+        row.className = 'message-row ' + (isSent ? 'sent' : 'received');
+
+        if (!isSent) {
+            const img = document.createElement('img');
+            img.className = 'message-avatar';
+            img.alt = '';
+            img.src = messageData.sender_profile_picture || '';
+            img.onerror = function() {
+                this.onerror = null;
+                this.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(messageData.sender || 'U') + '&background=555&color=fff&size=28';
+            };
+            row.appendChild(img);
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble ' + (isSent ? 'sent' : 'received');
+        bubble.innerHTML =
+            '<p>' + escapeHtml(messageData.content) + '</p>' +
+            '<p class="message-meta"><time>' + formatTime(messageData.created_at) + '</time>' +
+            (isSent ? '<i class="bi bi-check2" aria-label="Sent"></i>' : '') + '</p>';
+        row.appendChild(bubble);
+
+        if (isSent) {
+            const avatar = document.createElement('img');
+            avatar.className = 'message-avatar';
+            avatar.alt = '';
+            avatar.src = userAvatar;
+            avatar.onerror = function() { this.onerror = null; this.src = avatarFallback; };
+            row.appendChild(avatar);
+        }
+
+        list.appendChild(row);
+        scrollToBottom();
+    }
+
+    function removeLastSentMessage() {
+        const list = document.getElementById('messages-list');
+        if (!list) return;
+        const rows = list.querySelectorAll('.message-row.sent');
+        if (rows.length) rows[rows.length - 1].remove();
+    }
+
     function scrollToBottom() {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
-    
-    // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    
-    // Auto-refresh messages every 30 seconds
-    setInterval(function() {
-        // Only refresh if user is not actively typing
-        if (document.activeElement !== messageInput) {
-            checkForNewMessages();
-        }
-    }, 30000);
-    
-    function checkForNewMessages() {
-        fetch(`/messages/conversation/{{ conversation.id }}/`, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.messages && data.messages.length > messagesContainer.children.length) {
-                // Add new messages
-                const currentMessageCount = messagesContainer.children.length;
-                for (let i = currentMessageCount; i < data.messages.length; i++) {
-                    const message = data.messages[i];
-                    if (message.sender !== '{{ user.username }}') {
-                        addMessageToChat(message, false);
-                    }
-                }
-                scrollToBottom();
-            }
-        })
-        .catch(error => console.log('Error checking for new messages:', error));
-    }
-    
-    // Show typing indicator when user is typing
-    let typingTimeout;
-    messageInput.addEventListener('input', function() {
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            // Stop showing typing indicator after 3 seconds of inactivity
-        }, 3000);
-    });
 });
 
 function deleteConversation() {
-    if (confirm('Are you sure you want to delete this conversation?')) {
-        // Implement conversation deletion
-        alert('Conversation deleted (not implemented yet)');
+    if (confirm('Delete this conversation? This cannot be undone.')) {
+        alert('Delete conversation is not implemented yet.');
     }
 }
 </script>

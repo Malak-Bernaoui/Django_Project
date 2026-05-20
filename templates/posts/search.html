@@ -65,10 +65,190 @@
 </div>
 
 <style>
-.user-list { max-height: 500px; overflow-y: auto; }
-.user-item:last-child .border-bottom { border-bottom: none !important; }
-.user-item:hover { background: var(--background-light); }
-.user-item .profile-avatar { width: 50px; height: 50px; object-fit: cover; border-radius: 50%; }
+/* Modern Instagram-like Search Styles */
+.row.justify-content-center {
+    max-width: 935px;
+    margin: 0 auto;
+}
+
+.col-md-8 {
+    padding: 0;
+}
+
+/* Card Styling */
+.card {
+    background: var(--background-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Search Form */
+#search-form {
+    margin-bottom: 0;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+}
+
+.form-control {
+    background-color: var(--background-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 14px 20px;
+    border-radius: 8px 0 0 8px;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.form-control:focus {
+    background-color: var(--background-dark);
+    border-color: var(--electric-pink);
+    box-shadow: 0 0 0 0.2rem rgba(255, 20, 147, 0.25);
+    color: var(--text-primary);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.btn-primary-instagram {
+    background: linear-gradient(45deg, var(--electric-pink), var(--electric-pink-dark));
+    border: none;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 0 8px 8px 0;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-primary-instagram:hover {
+    background: linear-gradient(45deg, var(--electric-pink-dark), var(--electric-pink));
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 20, 147, 0.3);
+}
+
+/* Loading Indicator */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Search Results */
+.card-subtitle {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+}
+
+.user-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.user-item {
+    transition: background-color 0.2s ease;
+}
+
+.user-item:hover {
+    background-color: var(--medium-gray);
+}
+
+.user-item .d-flex {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.user-item:last-child .border-bottom {
+    border-bottom: none !important;
+}
+
+.user-item .profile-avatar {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    transition: transform 0.2s ease;
+}
+
+.user-item:hover .profile-avatar {
+    transform: scale(1.05);
+}
+
+.user-item .text-dark {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.user-item .text-muted {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.user-item .text-muted.small {
+    font-size: 0.85rem;
+    margin-top: 4px;
+}
+
+.user-item i.bi-lock-fill {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-left: 6px;
+}
+
+/* Empty State */
+.text-muted.text-center.py-4 {
+    color: var(--text-muted);
+    font-size: 1rem;
+    padding: 40px 20px;
+}
+
+.text-danger.text-center.py-3 {
+    color: #dc3545 !important;
+    font-size: 0.95rem;
+    padding: 30px 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .row.justify-content-center {
+        padding: 0 10px;
+    }
+    
+    .card-body {
+        padding: 16px;
+    }
+    
+    .form-control {
+        padding: 12px 16px;
+        font-size: 0.95rem;
+    }
+    
+    .btn-primary-instagram {
+        padding: 12px 20px;
+    }
+    
+    .user-item .profile-avatar {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .user-item .d-flex {
+        padding: 12px;
+    }
+}
 </style>
 {% endblock %}
 

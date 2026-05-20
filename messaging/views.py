@@ -55,7 +55,7 @@ class ConversationView(LoginRequiredMixin, DetailView):
         for message in unread_messages:
             message.mark_as_read()
         
-        context['messages'] = conversation.messages.all().order_by('created_at')
+        context['chat_messages'] = conversation.messages.all().order_by('created_at')
         return context
 
 class MessageRequestsView(LoginRequiredMixin, ListView):
